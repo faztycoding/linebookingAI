@@ -94,6 +94,19 @@ Local demo implementation complete; external service configuration and real-devi
 - POS API without Basic credentials — HTTP 401
 - Final build includes presenter, Admin, POS-lite, protected mutation APIs and middleware
 
+## Real-Device Verification (25 Aug 2026)
+
+- Deployed to Vercel production at `https://linebooking-ai.vercel.app`
+- Fixed multiple manually-entered Vercel environment variables that were truncated/incorrect (`LINE_CHANNEL_SECRET`, `LINE_CHANNEL_ACCESS_TOKEN`, `SEED_SECRET`) by reconciling every variable against `.env.local` via the Vercel CLI
+- Confirmed signed webhook requests return HTTP 200 on production
+- Confirmed `/api/seed` populates Supabase successfully in production
+- Confirmed Admin Basic Auth returns 401 without credentials and 200 with them
+- **Completed a full real LINE booking on a physical phone**: service → therapist → date → time → payment summary → Demo confirmation, producing a real booking code, correct 30% deposit, and correct remaining balance
+- Confirmed the confirmed booking is queryable from `/api/admin/bookings` for its correct appointment date
+- Found and fixed a gap: free-text questions after a button-driven selection (e.g., asking "16:30 ว่างไหม") did not carry forward the already-selected service/therapist/date, because that state lives separately from the AI's message history. Fixed by injecting a resolved selection summary into the system prompt on every AI turn
+- Confirmed by design (not a bug): sending any new free-text message after a completed booking naturally restarts the flow by prompting the AI to offer services again, so no explicit "book again" button is needed
+- Confirmed by design (not a bug): Admin shows only the current day's bookings by default; a booking made for a future date will not appear until that date is queried or arrives
+
 ## Pending External Gates
 
 1. Create Supabase and run `supabase/schema.sql`

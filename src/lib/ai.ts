@@ -8,7 +8,12 @@ import type {
   ToolResultBlockParam,
 } from "@anthropic-ai/sdk/resources/messages";
 
-import { getConversation, saveConversationHistory } from "@/lib/db";
+import {
+  getConversation,
+  getServiceById,
+  getTherapistById,
+  saveConversationHistory,
+} from "@/lib/db";
 import { executeTool, toolDefinitions } from "@/lib/tools";
 
 export type ToolExecution = {
@@ -38,7 +43,54 @@ function getBangkokNow(): { date: string; time: string } {
   return { date, time };
 }
 
-function getSystemPrompt(): string {
+function stateString(
+  state: Record<string, unknown>,
+  key: string,
+): string | null {
+  return typeof state[key] === "string" && state[key]
+    ? String(state[key])
+    : null;
+}
+
+async function buildSelectionSummary(
+  state: Record<string, unknown>,
+): Promise<string> {
+  const serviceId = stateString(state, "service_id");
+  const therapistId = stateString(state, "therapist_id");
+  const date = stateString(state, "date");
+  const startAt = stateString(state, "start_at");
+
+  if (!serviceId && !therapistId && !date) {
+    return "";
+  }
+
+  const [service, therapist] = await Promise.all([
+    serviceId ? getServiceById(serviceId) : Promise.resolve(null),
+    therapistId ? getTherapistById(therapistId) : Promise.resolve(null),
+  ]);
+  const lines: string[] = [];
+
+  if (service) {
+    lines.push(`- บริการที่เลือกไว้: ${service.name} (service_id: ${service.id})`);
+  }
+  if (therapist) {
+    lines.push(
+      `- พนักงานนวดที่เลือกไว้: ${therapist.nickname ?? therapist.name} (therapist_id: ${therapist.id})`,
+    );
+  }
+  if (date) {
+    lines.push(`- วันที่เลือกไว้: ${date}`);
+  }
+  if (startAt) {
+    lines.push(`- เวลาที่เพิ่งเลือก/ล็อกคิวไว้: ${startAt}`);
+  }
+
+  return lines.length
+    ? `\n## ข้อมูลที่ลูกค้าเลือกไว้แล้วในการสนทนานี้\nใช้ค่าเหล่านี้ได้ทันทีโดยไม่ต้องถามซ้ำ เช่น ถ้าลูกค้าถามเรื่องเวลาว่างเพิ่มเติม ให้เรียก get_available_slots ด้วย service_id/therapist_id/date เหล่านี้ทันที\n${lines.join("\n")}`
+    : "";
+}
+
+function getSystemPrompt(selectionSummary: string): string {
   const { date, time } = getBangkokNow();
   return `คุณคือพนักงานต้อนรับของ Baan Sabai Spa ร้านนวดแผนไทยและสปา
 คุยกับลูกค้าผ่าน LINE ด้วยภาษาไทยที่สุภาพ อบอุ่น กระชับ
@@ -56,6 +108,7 @@ function getSystemPrompt(): string {
 เลือกบริการ → เลือกพนักงานนวด → เลือกวันเวลา → ชำระมัดจำ → ยืนยัน
 ในแต่ละขั้น ให้เรียก tool เพื่อดึงตัวเลือกจริง ระบบจะแสดงปุ่มให้ลูกค้ากดเอง
 คุณไม่ต้องพิมพ์รายการตัวเลือกยาว ๆ ให้พูดสั้น ๆ นำเข้าสู่ปุ่ม
+${selectionSummary}
 
 ## โทน
 - ลงท้าย "ค่ะ"
@@ -136,12 +189,15 @@ export async function runReceptionist(
   }));
   const { client, model } = getClient();
   const toolExecutions: ToolExecution[] = [];
+  const systemPrompt = getSystemPrompt(
+    await buildSelectionSummary(conversation.state),
+  );
 
   for (let iteration = 0; iteration < 5; iteration += 1) {
     const response = await client.messages.create({
       model,
       max_tokens: 500,
-      system: getSystemPrompt(),
+      system: systemPrompt,
       messages,
       tools: anthropicTools(),
     });
