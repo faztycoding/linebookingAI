@@ -1,65 +1,75 @@
 # Project Progress
 
-Last updated: 2026-08-24
+Last updated: 2026-08-25
 
 ## Current Milestone
 
-Day 1 — Local implementation complete; external LINE/Vercel gate pending
+Phase 1 — Local data foundation and tools complete; Supabase execution gate pending
 
 ## Completed
 
-- Adopted the Agentic Coding Engineering Handbook as the project handbook
-- Added demo-specific rules to `AGENTS.md`
-- Created `SPEC.md`, `PROGRESS.md` and `PHASE2.md`
-- Scaffolded Next.js 15.5.23 App Router with TypeScript and Tailwind without creating UI
-- Implemented HMAC-SHA256 verification for `x-line-signature`
-- Implemented `replyMessage(replyToken, messages)` with the LINE Messaging API reply endpoint
-- Added `.env.example` without real credentials
-- Overrode vulnerable transitive `postcss` and `sharp` versions while retaining Next.js 15
-- Recorded the required save, commit and push workflow in `AGENTS.md`
+- Adopted the Agentic Coding Engineering Handbook and project-specific rules
+- Scaffolded Next.js 15.5.23 App Router with TypeScript and Tailwind
+- Implemented LINE signature verification and reply helper
+- Added approved dependencies:
+  - `@supabase/supabase-js@2.112.3`
+  - `@anthropic-ai/sdk@0.117.1`
+  - `promptpay-qr@0.5.0`
+  - `qrcode@1.5.4`
+- Expanded `.env.example` without real credentials
+- Added executable Supabase schema with booking exclusion constraint and Realtime publication setup
+- Added server-only Supabase access and typed domain records in `src/lib/db.ts`
+- Added idempotent Baan Sabai demo seed data for 5 services, 3 therapists, 14 days of shifts and shop information
+- Added a secret-protected `/api/seed` route
+- Added all six approved tools in `src/lib/tools.ts`
+- Implemented 30-minute slot generation, service duration, 15-minute room buffer and lazy expired-hold release
+- Implemented 10-minute hold creation and Thai mapping for Postgres conflict `23P01`
+- Recorded demo decisions in `SPEC.md`: all active therapists support core services and payment confirmation is mocked
+- Added `AI-Receptionist.pdf` as the customer presentation reference for the next commit
 
 ## Verification Evidence
 
-- `npm run lint` — passed
+- `npm run lint` — passed after removing all warnings
 - `npm run typecheck` — passed
-- `npm run build` — passed; `/api/line/webhook` compiled as a dynamic route
+- `npm run build` — passed; `/api/line/webhook` and `/api/seed` compiled as dynamic routes
 - `npm audit` — passed with 0 vulnerabilities
-- Local signed webhook request — returned HTTP 200 with an empty body and logged the event
-- Local invalid-signature request — returned HTTP 401 with a Thai error message
+- PostgreSQL range parser — manually checked against quoted and unquoted `tstzrange` output
+- Real Supabase schema/seed/tool calls — not run because project URL and keys are not configured
 
 ## Pending Manual Gate
 
-- Deploy to Vercel
-- Configure the LINE webhook URL and real channel credentials
-- Send a message from a physical phone and confirm the event appears in Vercel logs
+1. Create the Supabase project
+2. Run `supabase/schema.sql` in the SQL Editor
+3. Add Supabase values and `SEED_SECRET` to local/Vercel environment variables
+4. Call `POST /api/seed` with the seed bearer secret
+5. Verify changing a service price changes the next query result
+6. Verify duplicate `hold_slot` returns the Thai conflict response instead of HTTP 500
 
-## Files Touched This Session
+## Files Touched This Milestone
 
 - `.env.example`
-- `.gitignore`
-- `AGENTS.md`
-- `PHASE2.md`
-- `PROGRESS.md`
+- `AI-Receptionist.pdf`
 - `SPEC.md`
-- `eslint.config.mjs`
-- `next.config.ts`
-- `package-lock.json`
+- `PROGRESS.md`
 - `package.json`
-- `postcss.config.mjs`
-- `src/app/api/line/webhook/route.ts`
-- `src/lib/line.ts`
-- `tsconfig.json`
+- `package-lock.json`
+- `supabase/schema.sql`
+- `src/app/api/seed/route.ts`
+- `src/lib/db.ts`
+- `src/lib/seed.ts`
+- `src/lib/tools.ts`
 
 ## Next Steps
 
-1. Create LINE Official Account and Messaging API channel if not already available
-2. Add `LINE_CHANNEL_SECRET` and `LINE_CHANNEL_ACCESS_TOKEN` to Vercel environment variables
-3. Push the repository to GitHub and deploy it to Vercel
-4. Set the webhook URL to `https://<deployment>/api/line/webhook` and press Verify
-5. Disable LINE OA auto-reply and greeting messages
-6. Pass the physical-phone/Vercel-log gate before starting Day 2 schema and seed work
+1. Pass the Supabase execution gate
+2. Implement conversation persistence and the Claude Haiku tool loop
+3. Implement LINE Flex builders and deterministic postback state transitions
+4. Update the webhook to deduplicate events, return 200 first with `after()`, and dispatch text/postback events
+5. Pass the real-phone booking-to-hold gate
 
 ## Blockers
 
-- Real LINE channel credentials have not been provided
-- No Vercel deployment URL is available
+- Supabase project URL, anon key and service-role key are not configured
+- Anthropic API key/model are not configured
+- Real LINE channel credentials and OA URL are not configured
+- Vercel deployment URL is not available

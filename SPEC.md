@@ -55,6 +55,13 @@ Feature นอก scope ต้องบันทึกใน `PHASE2.md` แล�
 - Booking ทุกช่วงเวลารวม buffer 15 นาทีท้ายคิว
 - ข้อความที่ส่งลูกค้าต้องเป็นภาษาไทย กระชับ ไม่มี Markdown
 
+## Demo Data Decisions
+
+- พนักงานนวด active ทุกคนรับบริการหลักทั้ง 5 รายการได้ โดย `specialty` ใช้แสดงความถนัดเพื่อช่วยลูกค้าเลือก
+- Customer-facing UI ใช้คำว่า “พนักงานนวด” หรือ “เทอราปิสต์” แทน “หมอ” เพื่อไม่สื่อว่าเป็นบุคลากรทางการแพทย์
+- ใช้แบรนด์และข้อมูลสมมติ `Baan Sabai Spa` พร้อมระบุว่าเป็นข้อมูล Demo จนกว่าจะได้รับข้อมูลร้านจริง
+- PromptPay QR เป็นส่วนหนึ่งของ Flow แต่ Demo ใช้ปุ่ม “ชำระแล้ว” แทนการตรวจสลิปอัตโนมัติ
+
 ## Database Schema
 
 ```sql
@@ -147,7 +154,7 @@ const tools = [
   },
   {
     name: "get_therapists",
-    description: "ดึงรายชื่อหมอนวดที่ให้บริการนั้นได้",
+    description: "ดึงรายชื่อพนักงานนวดที่ให้บริการนั้นได้",
     input_schema: {
       type: "object",
       properties: { service_id: { type: "string" } },
