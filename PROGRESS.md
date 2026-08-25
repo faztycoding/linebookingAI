@@ -4,7 +4,7 @@ Last updated: 2026-08-25
 
 ## Current Milestone
 
-Phase 5 — Customer-facing presenter, Admin and POS-lite complete locally; external full-flow gate pending
+Local demo implementation complete; external service configuration and real-device acceptance gates pending
 
 ## Completed
 
@@ -63,6 +63,13 @@ Phase 5 — Customer-facing presenter, Admin and POS-lite complete locally; exte
 - Added Walk-in creation using the same service duration, 15-minute buffer and exclusion constraint
 - Added today’s sales, queue count and pending-deposit metrics
 - Added POS Realtime refresh and explicit Demo scope warnings for Stock, tax and accounting
+
+### Demo Polish
+
+- Seed now creates five realistic bookings across confirmed, completed and cancelled states
+- Seeded sales, deposits, LINE and Walk-in sources make Admin/POS presentation-ready immediately
+- Completed final whole-repository adversarial review
+- Preserved absolute UTC timestamp arithmetic for `timestamptz`; adding a manual Bangkok offset would incorrectly extend holds by seven hours
 
 ## Verification Evidence
 

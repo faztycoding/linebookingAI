@@ -107,6 +107,12 @@ const shopInfo = [
   },
 ];
 
+function bookingRange(date: string, time: string, durationMin: number): string {
+  const start = new Date(`${date}T${time}+07:00`);
+  const end = new Date(start.getTime() + (durationMin + 15) * 60_000);
+  return `[${start.toISOString()},${end.toISOString()})`;
+}
+
 function bangkokDate(value: Date): string {
   const parts = new Intl.DateTimeFormat("en-US", {
     timeZone: "Asia/Bangkok",
@@ -124,6 +130,7 @@ export async function seedDemoData(): Promise<{
   therapists: number;
   shiftsInserted: number;
   shopInfo: number;
+  bookings: number;
 }> {
   const client = getSupabaseAdmin();
   const { error: serviceError } = await client
@@ -200,10 +207,98 @@ export async function seedDemoData(): Promise<{
     }
   }
 
+  const demoBookings = [
+    {
+      id: "33333333-3333-4333-8333-333333333331",
+      booking_code: "DEMO01",
+      line_user_id: "demo-line-user-01",
+      customer_name: "คุณมิน",
+      service_id: services[0].id,
+      therapist_id: therapists[0].id,
+      time_range: bookingRange(dates[0], "10:00:00", services[0].duration_min),
+      status: "confirmed",
+      source: "line",
+      deposit_amount: 150,
+      total_amount: 500,
+      paid_amount: 150,
+      payment_method: "promptpay_demo",
+      note: "Demo seeded booking",
+    },
+    {
+      id: "33333333-3333-4333-8333-333333333332",
+      booking_code: "DEMO02",
+      customer_name: "คุณพลอย",
+      service_id: services[1].id,
+      therapist_id: therapists[1].id,
+      time_range: bookingRange(dates[0], "12:00:00", services[1].duration_min),
+      status: "completed",
+      source: "walkin",
+      deposit_amount: 0,
+      total_amount: 900,
+      paid_amount: 900,
+      payment_method: "cash",
+      note: "Demo seeded booking",
+    },
+    {
+      id: "33333333-3333-4333-8333-333333333333",
+      booking_code: "DEMO03",
+      line_user_id: "demo-line-user-03",
+      customer_name: "คุณนัท",
+      service_id: services[2].id,
+      therapist_id: therapists[2].id,
+      time_range: bookingRange(dates[0], "14:00:00", services[2].duration_min),
+      status: "confirmed",
+      source: "line",
+      deposit_amount: 135,
+      total_amount: 450,
+      paid_amount: 135,
+      payment_method: "promptpay_demo",
+      note: "Demo seeded booking",
+    },
+    {
+      id: "33333333-3333-4333-8333-333333333334",
+      booking_code: "DEMO04",
+      line_user_id: "demo-line-user-04",
+      customer_name: "คุณบี",
+      service_id: services[3].id,
+      therapist_id: therapists[0].id,
+      time_range: bookingRange(dates[0], "16:00:00", services[3].duration_min),
+      status: "cancelled",
+      source: "line",
+      deposit_amount: 330,
+      total_amount: 1100,
+      paid_amount: 0,
+      note: "Demo seeded booking",
+    },
+    {
+      id: "33333333-3333-4333-8333-333333333335",
+      booking_code: "DEMO05",
+      customer_name: "คุณเจน",
+      service_id: services[4].id,
+      therapist_id: therapists[2].id,
+      time_range: bookingRange(dates[0], "17:00:00", services[4].duration_min),
+      status: "completed",
+      source: "walkin",
+      deposit_amount: 0,
+      total_amount: 1500,
+      paid_amount: 1500,
+      payment_method: "transfer",
+      note: "Demo seeded booking",
+    },
+  ];
+  const { error: bookingError } = await client
+    .from("bookings")
+    .upsert(demoBookings, { onConflict: "id" });
+
+  if (bookingError) {
+    throw new Error(bookingError.message);
+  }
+
   return {
     services: services.length,
     therapists: therapists.length,
     shiftsInserted: shifts.length,
     shopInfo: shopInfo.length,
+    bookings: demoBookings.length,
   };
 }
