@@ -107,6 +107,7 @@ Local demo implementation complete; external service configuration and real-devi
 - Confirmed by design (not a bug): sending any new free-text message after a completed booking naturally restarts the flow by prompting the AI to offer services again, so no explicit "book again" button is needed
 - Confirmed by design (not a bug): Admin shows only the current day's bookings by default; a booking made for a future date will not appear until that date is queried or arrives
 - Found a second real-device gap: asking to change/reschedule an already-held time (e.g. "เปลี่ยนเวลาเป็น 16:30") made the AI respond as if it had forgotten the service, because rescheduling has no tool and is explicitly out of scope. Fixed by adding an explicit system-prompt rule to escalate to a human instead of restarting the flow, and synced the same rule into `SPEC.md`
+- Added an automatic "จองบริการเพิ่ม" LINE Quick Reply button on the booking confirmation card, using a shared `book_again` postback that resets the booking state and resends the service carousel in a single reply (LINE reply tokens can only be used once)
 
 ## Pending External Gates
 

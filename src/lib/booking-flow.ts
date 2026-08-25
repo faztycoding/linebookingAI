@@ -73,6 +73,36 @@ function bookingStart(timeRange: string): string | null {
   return match?.[1] ?? null;
 }
 
+const BOOK_AGAIN_QUICK_REPLY = {
+  items: [
+    {
+      type: "action",
+      action: {
+        type: "postback",
+        label: "จองบริการเพิ่ม",
+        data: "action=book_again",
+        displayText: "ต้องการจองบริการเพิ่มค่ะ",
+      },
+    },
+  ],
+};
+
+async function buildServiceCarouselMessages(): Promise<LineMessage[]> {
+  const result = await executeTool("get_services", {});
+  const services = resultArray<Service>(
+    { name: "get_services", input: {}, result },
+    "services",
+  );
+
+  return services.length
+    ? [textMessage("เลือกบริการที่สนใจได้เลยค่ะ"), serviceCarousel(services)]
+    : [
+        textMessage(
+          "ขณะนี้กำลังเตรียมข้อมูลบริการ รบกวนสอบถามแอดมินสักครู่นะคะ",
+        ),
+      ];
+}
+
 async function replyForAiResult(
   lineUserId: string,
   replyToken: string,
@@ -357,8 +387,23 @@ async function handlePostback(
     });
     await replyMessage(replyToken, [
       textMessage("บันทึกการชำระแบบ Demo และยืนยันคิวเรียบร้อยแล้วค่ะ"),
-      bookingConfirmation({ booking, service, therapist, startAt }),
+      {
+        ...bookingConfirmation({ booking, service, therapist, startAt }),
+        quickReply: BOOK_AGAIN_QUICK_REPLY,
+      },
     ]);
+    return;
+  }
+
+  if (action === "book_again") {
+    await mergeConversationState(lineUserId, {
+      service_id: null,
+      therapist_id: null,
+      date: null,
+      start_at: null,
+      booking_id: null,
+    });
+    await replyMessage(replyToken, await buildServiceCarouselMessages());
     return;
   }
 
@@ -384,25 +429,13 @@ async function handleClaimedEvent(event: LineWebhookEvent): Promise<void> {
   }
 
   if (event.type === "follow") {
-    const result = await executeTool("get_services", {});
-    const services = Array.isArray(result.services)
-      ? (result.services as Service[])
-      : [];
-    await replyMessage(
-      replyToken,
-      services.length
-        ? [
-            textMessage(
-              "สวัสดีค่ะ ยินดีต้อนรับสู่ Baan Sabai Spa สอบถามข้อมูลหรือเลือกบริการได้เลยค่ะ",
-            ),
-            serviceCarousel(services),
-          ]
-        : [
-            textMessage(
-              "สวัสดีค่ะ ขณะนี้กำลังเตรียมข้อมูลบริการ รบกวนสอบถามแอดมินสักครู่นะคะ",
-            ),
-          ],
-    );
+    const carouselMessages = await buildServiceCarouselMessages();
+    await replyMessage(replyToken, [
+      textMessage(
+        "สวัสดีค่ะ ยินดีต้อนรับสู่ Baan Sabai Spa สอบถามข้อมูลหรือเลือกบริการได้เลยค่ะ",
+      ),
+      ...carouselMessages,
+    ]);
     return;
   }
 
