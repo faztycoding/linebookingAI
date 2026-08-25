@@ -98,6 +98,28 @@ const BOOK_AGAIN_QUICK_REPLY = {
   ],
 };
 
+// Deterministic guard for the generic "start booking" entry point (e.g. a
+// LINE rich menu / quick reply button labeled "เริ่มใช้บริการ"). This is
+// intentionally NOT left to the AI: real-device testing showed the model
+// would sometimes reply in text that it "will show the menu" without
+// actually calling get_services in that turn, so no carousel was ever
+// sent. Matching these exact short phrases up front guarantees the menu
+// always appears, regardless of what the AI decides to do.
+const START_BOOKING_PHRASES = new Set([
+  "เริ่มใช้บริการ",
+  "เริ่มบริการ",
+  "จองคิว",
+  "จองบริการ",
+  "จอง",
+  "ดูเมนู",
+  "เมนู",
+  "ดูบริการ",
+]);
+
+function isStartBookingPhrase(text: string): boolean {
+  return START_BOOKING_PHRASES.has(text.trim());
+}
+
 async function buildServiceCarouselMessages(): Promise<LineMessage[]> {
   const result = await executeTool("get_services", {});
   const services = resultArray<Service>(
@@ -543,11 +565,19 @@ async function handleClaimedEvent(event: LineWebhookEvent): Promise<void> {
   }
 
   if (event.type === "message" && event.message?.type === "text") {
-    await replyForAiResult(
-      lineUserId,
-      replyToken,
-      event.message.text?.trim() || "สวัสดี",
-    );
+    const userText = event.message.text?.trim() || "สวัสดี";
+    if (isStartBookingPhrase(userText)) {
+      await mergeConversationState(lineUserId, {
+        service_id: null,
+        therapist_id: null,
+        date: null,
+        start_at: null,
+        booking_id: null,
+      });
+      await replyMessage(replyToken, await buildServiceCarouselMessages());
+      return;
+    }
+    await replyForAiResult(lineUserId, replyToken, userText);
     return;
   }
 

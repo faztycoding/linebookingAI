@@ -212,6 +212,44 @@ check("booking-flow merges into the existing profile instead of overwriting it",
   assert.match(source, /profile:\s*\{\s*\n?\s*\.\.\.existingProfile/);
 });
 
+// --- booking-flow.ts: deterministic "start booking" short-circuit ---
+//
+// Real-device testing showed the AI would sometimes reply in text that it
+// "will show the menu" without ever calling get_services, so no carousel
+// was sent. A deterministic phrase match now bypasses the AI for this
+// entry point. booking-flow.ts imports "server-only", so the exact-match
+// set is reimplemented here from source text to keep this check honest
+// about the current phrase list while still exercising real Set behavior.
+
+check("booking-flow short-circuits known start-booking phrases before the AI call", () => {
+  const source = readFileSync(
+    path.join(__dirname, "..", "src", "lib", "booking-flow.ts"),
+    "utf8",
+  );
+  assert.match(source, /isStartBookingPhrase\(userText\)/);
+  assert.match(
+    source,
+    /await replyForAiResult\(lineUserId, replyToken, userText\);/,
+  );
+
+  const setMatch = source.match(
+    /START_BOOKING_PHRASES = new Set\(\[([\s\S]*?)\]\)/,
+  );
+  assert.ok(setMatch, "expected to find START_BOOKING_PHRASES literal");
+  const phrases = [...setMatch[1].matchAll(/"([^"]+)"/g)].map((m) => m[1]);
+  assert.ok(phrases.includes("เริ่มใช้บริการ"));
+  assert.ok(phrases.includes("เริ่มบริการ"));
+
+  const isStartBookingPhrase = (text) =>
+    new Set(phrases).has(text.trim());
+  assert.ok(isStartBookingPhrase("เริ่มบริการ"));
+  assert.ok(isStartBookingPhrase(" เริ่มใช้บริการ "));
+  assert.equal(
+    isStartBookingPhrase("อยากนวดแก้ปวดหลังหน่อยค่ะ"),
+    false,
+  );
+});
+
 // --- report ---
 
 const failed = results.filter((result) => !result.ok);

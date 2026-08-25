@@ -147,6 +147,12 @@ Scoped to the low-risk options approved by the user, deferring vector-search RAG
 - Root cause: `timeGrid()` in `src/lib/flex.ts` sliced to the first 10 slots. A full-day shift (e.g. 10:00-20:00) with a 60-minute service plus 15-minute buffer produces up to ~18 valid slots, so anything after 16:30 was silently cut
 - Fixed by raising the visible cap to 20 (comfortably covers a full shift) while still capping extreme cases so the card cannot grow unbounded. Added two regression checks (18-slot day fully visible, 40-slot case still capped) — 17/17 checks passing
 
+## Follow-up: Prompt-Only Fix Was Not Reliable Enough (26 Aug 2026)
+
+- Re-tested the "start booking" fix from earlier today with a slightly different phrase ("เริ่มบริการ" instead of "เริ่มใช้บริการ") and the AI again replied in text ("กดปุ่มเลือกบริการค่ะ") without calling `get_services`, so no carousel appeared. This confirms prompt instructions alone are not reliable for this entry point — the model can choose to respond conversationally regardless of what the system prompt says
+- Fixed at the code level instead of relying further on prompting: `processLineWebhookEvent` now checks incoming text against a fixed `START_BOOKING_PHRASES` set (เริ่มใช้บริการ, เริ่มบริการ, จองคิว, จองบริการ, จอง, ดูเมนู, เมนู, ดูบริการ) and, on an exact match, calls the existing deterministic `buildServiceCarouselMessages()` helper directly — bypassing the AI call entirely for this specific case. Freeform messages (e.g. describing symptoms) still go through the AI as before; the system-prompt rule added earlier remains as defense-in-depth for phrasing outside the fixed set
+- Added a regression check that reimplements the exact-match logic from the literal phrase set in source and asserts both matching and non-matching behavior — 18/18 checks passing
+
 1. Create Supabase and run `supabase/schema.sql`
 2. Configure Supabase values and call the protected seed route
 3. Configure Anthropic API key and a current Claude Haiku model ID
