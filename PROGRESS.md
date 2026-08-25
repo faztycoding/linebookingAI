@@ -39,7 +39,7 @@ Local demo implementation complete; external service configuration and real-devi
 - Added a customer-visible payment summary that clearly labels manual Demo confirmation
 - Added owner-checked, expiry-checked and idempotent mock payment confirmation
 - Added a booking confirmation Flex card with booking code, deposit and remaining balance
-- Added five-minute hold cleanup cron with bearer authentication
+- Added daily hold cleanup cron with bearer authentication, scheduled once per day to fit the Vercel Hobby plan's cron limit (correctness relies on lazy release in availability/Admin/POS queries, not cron frequency)
 - Added lazy hold cleanup before availability checks and 24-hour webhook dedupe retention cleanup
 
 ### Presenter and Admin
