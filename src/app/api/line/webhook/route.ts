@@ -1,5 +1,3 @@
-import { after } from "next/server";
-
 import { processLineWebhookEvent } from "@/lib/booking-flow";
 import {
   type LineWebhookBody,
@@ -62,21 +60,20 @@ export async function POST(request: Request): Promise<Response> {
     events: body.events.map((event) => ({
       id: event.webhookEventId,
       type: event.type,
+      ...(event.postback ? { postbackData: event.postback.data } : {}),
     })),
   });
 
-  after(async () => {
-    for (const event of body.events) {
-      try {
-        await processLineWebhookEvent(event);
-      } catch (error) {
-        console.error("Unhandled LINE event failure", {
-          eventId: event.webhookEventId,
-          error,
-        });
-      }
+  for (const event of body.events) {
+    try {
+      await processLineWebhookEvent(event);
+    } catch (error) {
+      console.error("Unhandled LINE event failure", {
+        eventId: event.webhookEventId,
+        error,
+      });
     }
-  });
+  }
 
   return new Response(null, { status: 200 });
 }
