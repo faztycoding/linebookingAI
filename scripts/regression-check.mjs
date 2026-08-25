@@ -15,6 +15,12 @@ import assert from "node:assert/strict";
 
 import { getNextSevenDates, serviceCarousel, timeGrid } from "../src/lib/flex.ts";
 import { verifyLineSignature } from "../src/lib/line.ts";
+import {
+  buildRichMenuImage,
+  RICH_MENU_AREAS,
+  RICH_MENU_HEIGHT,
+  RICH_MENU_WIDTH,
+} from "../src/lib/rich-menu.ts";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const results = [];
@@ -221,6 +227,35 @@ check("booking-flow merges into the existing profile instead of overwriting it",
 // set is reimplemented here from source text to keep this check honest
 // about the current phrase list while still exercising real Set behavior.
 
+// --- rich-menu.ts: LINE rich menu image and tap areas ---
+
+check("rich-menu areas cover the full 2x2 grid with no overlap or gaps", () => {
+  assert.equal(RICH_MENU_AREAS.length, 4);
+  const covered = new Set(
+    RICH_MENU_AREAS.map((area) => `${area.bounds.x},${area.bounds.y}`),
+  );
+  assert.equal(covered.size, 4, "each area must start at a unique corner");
+  for (const area of RICH_MENU_AREAS) {
+    assert.ok(area.bounds.x + area.bounds.width <= RICH_MENU_WIDTH);
+    assert.ok(area.bounds.y + area.bounds.height <= RICH_MENU_HEIGHT);
+  }
+});
+
+check("rich-menu areas only use deterministic postback actions, not free text to the AI", () => {
+  for (const area of RICH_MENU_AREAS) {
+    assert.equal(area.action.type, "postback");
+    assert.match(area.action.data, /^action=menu_/);
+  }
+});
+
+check("buildRichMenuImage renders a valid PNG at the required LINE dimensions", async () => {
+  const buffer = await buildRichMenuImage();
+  assert.ok(buffer.length > 0);
+  // PNG signature + IHDR width/height are big-endian 32-bit ints at fixed offsets.
+  assert.equal(buffer.readUInt32BE(16), RICH_MENU_WIDTH);
+  assert.equal(buffer.readUInt32BE(20), RICH_MENU_HEIGHT);
+});
+
 check("booking-flow short-circuits known start-booking phrases before the AI call", () => {
   const source = readFileSync(
     path.join(__dirname, "..", "src", "lib", "booking-flow.ts"),
@@ -248,6 +283,17 @@ check("booking-flow short-circuits known start-booking phrases before the AI cal
     isStartBookingPhrase("อยากนวดแก้ปวดหลังหน่อยค่ะ"),
     false,
   );
+});
+
+check("booking-flow handles all four rich-menu postback actions", () => {
+  const source = readFileSync(
+    path.join(__dirname, "..", "src", "lib", "booking-flow.ts"),
+    "utf8",
+  );
+  assert.match(source, /action === "menu_start_booking"/);
+  assert.match(source, /action === "menu_my_booking"/);
+  assert.match(source, /action === "menu_contact_admin"/);
+  assert.match(source, /action === "menu_about_shop"/);
 });
 
 // --- report ---

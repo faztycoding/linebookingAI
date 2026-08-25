@@ -10,6 +10,7 @@ import {
   getBookingById,
   getConversation,
   getServiceById,
+  getShopInfo,
   getTherapistById,
   getTherapists,
   InvalidBookingTransitionError,
@@ -520,7 +521,7 @@ async function handlePostback(
     return;
   }
 
-  if (action === "book_again") {
+  if (action === "book_again" || action === "menu_start_booking") {
     await mergeConversationState(lineUserId, {
       service_id: null,
       therapist_id: null,
@@ -529,6 +530,86 @@ async function handlePostback(
       booking_id: null,
     });
     await replyMessage(replyToken, await buildServiceCarouselMessages());
+    return;
+  }
+
+  if (action === "menu_my_booking") {
+    const bookingId = stateString(conversation.state, "booking_id");
+    const booking = bookingId ? await getBookingById(bookingId) : null;
+    const activeStatuses = new Set(["hold", "pending_payment", "confirmed"]);
+
+    if (!booking || !activeStatuses.has(booking.status)) {
+      await replyMessage(replyToken, [
+        textMessage(
+          "ตอนนี้ยังไม่มีคิวที่กำลังใช้งานอยู่ค่ะ เลือกบริการเพื่อเริ่มจองได้เลยค่ะ",
+        ),
+        ...(await buildServiceCarouselMessages()),
+      ]);
+      return;
+    }
+
+    const [service, therapist] = await Promise.all([
+      booking.service_id ? getServiceById(booking.service_id) : null,
+      getTherapistById(booking.therapist_id),
+    ]);
+    const startAt = bookingStart(booking.time_range);
+
+    if (!service || !therapist || !startAt) {
+      await replyMessage(replyToken, [
+        textMessage(
+          `คิวของคุณคือรหัส ${booking.booking_code} ค่ะ กรุณาแจ้งแอดมินหากต้องการรายละเอียดเพิ่มเติม`,
+        ),
+      ]);
+      return;
+    }
+
+    await replyMessage(
+      replyToken,
+      booking.status === "confirmed"
+        ? [bookingConfirmation({ booking, service, therapist, startAt })]
+        : [
+            paymentSummary({
+              booking,
+              service,
+              therapist,
+              startAt,
+              qrUrl: getPaymentQrUrl(booking.id),
+            }),
+          ],
+    );
+    return;
+  }
+
+  if (action === "menu_contact_admin") {
+    await executeTool(
+      "escalate_to_human",
+      { reason: "ลูกค้ากดปุ่มติดต่อแอดมินจากเมนู" },
+      { lineUserId },
+    );
+    await replyMessage(replyToken, [
+      textMessage(
+        "รับทราบค่ะ แอดมินจะติดต่อกลับโดยเร็วที่สุดค่ะ ระหว่างนี้สอบถามข้อมูลเพิ่มเติมได้เลยค่ะ",
+      ),
+    ]);
+    return;
+  }
+
+  if (action === "menu_about_shop") {
+    const info = await getShopInfo();
+    const lines = [
+      info.address ? `ที่อยู่: ${info.address}` : null,
+      info.hours ? `เวลาเปิด-ปิด: ${info.hours}` : null,
+      info.parking ? `ที่จอดรถ: ${info.parking}` : null,
+      info.phone ? `โทร: ${info.phone}` : null,
+    ].filter((line): line is string => Boolean(line));
+
+    await replyMessage(replyToken, [
+      textMessage(
+        lines.length
+          ? lines.join("\n")
+          : "ขณะนี้ยังไม่มีข้อมูลร้านค่ะ สอบถามแอดมินได้เลยค่ะ",
+      ),
+    ]);
     return;
   }
 
