@@ -13,7 +13,7 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 import assert from "node:assert/strict";
 
-import { getNextSevenDates, serviceCarousel } from "../src/lib/flex.ts";
+import { getNextSevenDates, serviceCarousel, timeGrid } from "../src/lib/flex.ts";
 import { verifyLineSignature } from "../src/lib/line.ts";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -72,6 +72,32 @@ check("serviceCarousel accepts a normal-sized service without throwing", () => {
 
   const message = serviceCarousel([service]);
   assert.equal(message.type, "flex");
+});
+
+// --- flex.ts: timeGrid must not hide a full day's slots ---
+//
+// A real-device bug showed the AI confirming a specific time (e.g. 17:30)
+// was available, then rendering a button grid that did not include that
+// time because it only showed the first 10 slots of a full-day shift.
+
+check("timeGrid shows every slot for a typical full-day shift (<= 18)", () => {
+  const slots = Array.from({ length: 18 }, (_, index) => ({
+    start_at: new Date(Date.now() + index * 30 * 60_000).toISOString(),
+    label: `slot-${index}`,
+  }));
+  const message = timeGrid(slots);
+  const buttons = message.contents.body.contents;
+  assert.equal(buttons.length, 18);
+});
+
+check("timeGrid still caps extreme slot counts instead of an unbounded card", () => {
+  const slots = Array.from({ length: 40 }, (_, index) => ({
+    start_at: new Date(Date.now() + index * 30 * 60_000).toISOString(),
+    label: `slot-${index}`,
+  }));
+  const message = timeGrid(slots);
+  const buttons = message.contents.body.contents;
+  assert.ok(buttons.length < slots.length);
 });
 
 // --- line.ts: webhook signature verification ---

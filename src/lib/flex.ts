@@ -265,7 +265,12 @@ export function datePicker(dates: DateOption[]): LineMessage {
 }
 
 export function timeGrid(slots: AvailableSlot[]): LineMessage {
-  const visibleSlots = slots.slice(0, 10);
+  // A full-day shift (e.g. 10:00-20:00) with a 60-minute service plus the
+  // 15-minute room buffer can generate up to ~18 valid 30-minute start
+  // times. Capping at 10 previously hid slots later in the day (including
+  // ones the AI had just confirmed as available in free text), so the limit
+  // is raised to comfortably cover a full shift.
+  const visibleSlots = slots.slice(0, 20);
   return {
     type: "flex",
     altText: "เลือกเวลาว่าง",
@@ -306,7 +311,7 @@ export function timeGrid(slots: AvailableSlot[]): LineMessage {
             type: "text",
             text:
               slots.length > visibleSlots.length
-                ? "แสดง 10 เวลาแรก หากต้องการเวลาอื่นสอบถามแอดมินได้ค่ะ"
+                ? "แสดง 20 เวลาแรก หากต้องการเวลาอื่นสอบถามแอดมินได้ค่ะ"
                 : "เวลารวมช่วงเก็บห้อง 15 นาทีแล้วค่ะ",
             color: COLORS.muted,
             size: "xs",
