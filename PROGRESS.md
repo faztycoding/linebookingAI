@@ -124,6 +124,17 @@ Local demo implementation complete; external service configuration and real-devi
 
 - `PROMPTPAY_ID` is temporarily set to `0000000000` so the QR image renders for visual demo purposes. This is not a real registered PromptPay account, so no real money can be routed there even if scanned. Replace with the shop's real PromptPay ID (ideally a corporate/Tax ID PromptPay tied to the business bank account) before any real transaction is expected to work
 
+## AI Sharpness Improvements (25 Aug 2026)
+
+Scoped to the low-risk options approved by the user, deferring vector-search RAG and hybrid model routing to Phase 2 since they need new infrastructure this close to the demo deadline.
+
+- Added symptom-based recommendation guidance to the system prompt that reuses the existing `get_services`/`get_therapists` tools instead of adding a new deterministic-keyword tool, since a real recommendation needs semantic understanding of free-text symptoms that a keyword matcher cannot reliably provide, and the LLM can already reason over real DB-returned descriptions
+- Added lightweight returning-customer memory: `conversations.state.profile` (`last_service_id`, `last_therapist_id`, `visit_count`), written on successful payment confirmation and merged (not overwritten) into any existing profile fields, surfaced to the AI as "ลูกค้าคนนี้เคยจองมาก่อน" context. Profile is safe from cross-user leakage because `conversations` is keyed by `line_user_id` and every lookup is scoped to the current LINE user
+- Added a prompt-injection defense rule instructing the AI to ignore in-message attempts to reveal the system prompt, change its role, or claim admin/developer authority
+- Added `scripts/regression-check.mjs` (plain Node script, no test framework dependency) that: exercises `flex.ts`/`line.ts` pure functions directly (date generation, postback length guard, LINE signature verification), reimplements the `booking-flow.ts` UUID validator inline since that file cannot be imported directly (`server-only`), and asserts that the specific prompt rules fixed today during real-device testing are still present in `src/lib/ai.ts` and `src/lib/booking-flow.ts`. Verified it actually catches regressions by deliberately deleting a rule and confirming the script failed, then restoring the file
+- Added `npm run check:regression` script entry
+- Adversarial review completed; fixed one real issue (the profile write was overwriting the whole object instead of merging with existing fields) and declined one suggested change (explicitly re-passing `profile` on state resets) since the shallow-merge design already preserves untouched keys and the extra code would be redundant
+
 ## Pending External Gates
 
 1. Create Supabase and run `supabase/schema.sql`

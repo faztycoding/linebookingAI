@@ -392,9 +392,25 @@ async function handlePostback(
       return;
     }
 
+    const existingProfile =
+      conversation.state.profile &&
+      typeof conversation.state.profile === "object"
+        ? (conversation.state.profile as Record<string, unknown>)
+        : {};
+    const previousVisits =
+      typeof existingProfile.visit_count === "number"
+        ? existingProfile.visit_count
+        : 0;
+
     await mergeConversationState(lineUserId, {
       booking_id: booking.id,
       payment_confirmed: true,
+      profile: {
+        ...existingProfile,
+        last_service_id: service.id,
+        last_therapist_id: therapist.id,
+        visit_count: previousVisits + 1,
+      },
     });
     await replyMessage(replyToken, [
       textMessage("บันทึกการชำระแบบ Demo และยืนยันคิวเรียบร้อยแล้วค่ะ"),
