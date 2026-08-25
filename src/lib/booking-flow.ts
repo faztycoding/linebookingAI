@@ -626,14 +626,6 @@ async function handleClaimedEvent(event: LineWebhookEvent): Promise<void> {
     return;
   }
 
-  const conversation = await getConversation(lineUserId);
-  const pauseUntil = conversation.ai_paused_until
-    ? new Date(conversation.ai_paused_until)
-    : null;
-  if (pauseUntil && pauseUntil.getTime() > Date.now()) {
-    return;
-  }
-
   if (event.type === "follow") {
     const carouselMessages = await buildServiceCarouselMessages();
     await replyMessage(replyToken, [
@@ -646,6 +638,14 @@ async function handleClaimedEvent(event: LineWebhookEvent): Promise<void> {
   }
 
   if (event.type === "message" && event.message?.type === "text") {
+    const conversation = await getConversation(lineUserId);
+    const pauseUntil = conversation.ai_paused_until
+      ? new Date(conversation.ai_paused_until)
+      : null;
+    if (pauseUntil && pauseUntil.getTime() > Date.now()) {
+      return;
+    }
+
     const userText = event.message.text?.trim() || "สวัสดี";
     if (isStartBookingPhrase(userText)) {
       await mergeConversationState(lineUserId, {
