@@ -120,6 +120,10 @@ Local demo implementation complete; external service configuration and real-devi
 - Updated the AI system prompt to route cancel requests to the button flow instead of escalating, while reschedule requests still escalate
 - Adversarial review completed; corrected a reviewer false positive (walk-in bookings have `line_user_id = null`, which can never match a real LINE user ID, so they were already unreachable by this function) and hardened the ownership check further with an explicit `source === "line"` requirement
 
+## Temporary Demo Placeholder
+
+- `PROMPTPAY_ID` is temporarily set to `0000000000` so the QR image renders for visual demo purposes. This is not a real registered PromptPay account, so no real money can be routed there even if scanned. Replace with the shop's real PromptPay ID (ideally a corporate/Tax ID PromptPay tied to the business bank account) before any real transaction is expected to work
+
 ## Pending External Gates
 
 1. Create Supabase and run `supabase/schema.sql`
