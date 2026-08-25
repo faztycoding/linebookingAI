@@ -1,6 +1,8 @@
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 import { timingSafeEqual } from "node:crypto";
 
-import { buildRichMenuImage, RICH_MENU_DEFINITION } from "@/lib/rich-menu";
+import { RICH_MENU_DEFINITION } from "@/lib/rich-menu";
 
 export const runtime = "nodejs";
 
@@ -77,7 +79,8 @@ export async function POST(request: Request): Promise<Response> {
       richMenuId: string;
     };
 
-    const image = await buildRichMenuImage();
+    const imagePath = join(process.cwd(), "public", "rich-menu.png");
+    const image = await readFile(imagePath);
     const uploadResponse = await fetch(
       `https://api-data.line.me/v2/bot/richmenu/${richMenuId}/content`,
       {

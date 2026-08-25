@@ -1,4 +1,8 @@
-import sharp from "sharp";
+// sharp is imported dynamically inside buildRichMenuImage so that this module
+// can be safely imported by the /api/rich-menu route on Vercel without
+// requiring the platform-specific sharp binary at runtime. The image is
+// pre-generated locally (npm run gen:rich-menu) and committed as a static
+// file in public/rich-menu.png.
 
 const COLORS = {
   green: "#365C42",
@@ -110,6 +114,7 @@ function buildRichMenuSvg(): string {
 }
 
 export async function buildRichMenuImage(): Promise<Buffer> {
+  const { default: sharp } = await import("sharp");
   return sharp(Buffer.from(buildRichMenuSvg())).png().toBuffer();
 }
 
