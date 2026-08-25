@@ -4,12 +4,15 @@ import { runReceptionist, type ToolExecution } from "@/lib/ai";
 import {
   BookingExpiredError,
   BookingNotFoundError,
+  cancelOwnBooking,
   claimWebhookEvent,
   confirmBookingPayment,
+  getBookingById,
   getConversation,
   getServiceById,
   getTherapistById,
   getTherapists,
+  InvalidBookingTransitionError,
   mergeConversationState,
   releaseWebhookEvent,
   type Booking,
@@ -18,6 +21,7 @@ import {
 } from "@/lib/db";
 import {
   bookingConfirmation,
+  cancelConfirmation,
   datePicker,
   getNextSevenDates,
   paymentSummary,
@@ -71,6 +75,13 @@ function resultBooking(value: unknown): Booking | null {
 function bookingStart(timeRange: string): string | null {
   const match = timeRange.match(/^[[(]"?([^",]+)"?,/);
   return match?.[1] ?? null;
+}
+
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function isValidBookingId(value: string | null): value is string {
+  return typeof value === "string" && UUID_PATTERN.test(value);
 }
 
 const BOOK_AGAIN_QUICK_REPLY = {
@@ -339,7 +350,7 @@ async function handlePostback(
 
   if (action === "confirm_payment") {
     const bookingId = params.get("booking_id");
-    if (!bookingId) {
+    if (!isValidBookingId(bookingId)) {
       await replyMessage(replyToken, [
         textMessage("ไม่พบรายการชำระเงินค่ะ กรุณาเริ่มจองใหม่"),
       ]);
@@ -391,6 +402,82 @@ async function handlePostback(
         ...bookingConfirmation({ booking, service, therapist, startAt }),
         quickReply: BOOK_AGAIN_QUICK_REPLY,
       },
+    ]);
+    return;
+  }
+
+  if (action === "cancel_booking_confirm") {
+    const bookingId = params.get("booking_id");
+    const booking = isValidBookingId(bookingId)
+      ? await getBookingById(bookingId)
+      : null;
+    if (!booking || booking.line_user_id !== lineUserId) {
+      await replyMessage(replyToken, [
+        textMessage("ไม่พบคิวนี้ค่ะ"),
+      ]);
+      return;
+    }
+    if (!["hold", "pending_payment", "confirmed"].includes(booking.status)) {
+      await replyMessage(replyToken, [
+        textMessage("คิวนี้ไม่สามารถยกเลิกได้แล้วค่ะ"),
+      ]);
+      return;
+    }
+
+    await replyMessage(replyToken, [
+      cancelConfirmation({
+        bookingId: booking.id,
+        bookingCode: booking.booking_code,
+      }),
+    ]);
+    return;
+  }
+
+  if (action === "cancel_booking") {
+    const bookingId = params.get("booking_id");
+    if (!isValidBookingId(bookingId)) {
+      await replyMessage(replyToken, [
+        textMessage("ไม่พบคิวนี้ค่ะ"),
+      ]);
+      return;
+    }
+
+    try {
+      const booking = await cancelOwnBooking({ bookingId, lineUserId });
+      await mergeConversationState(lineUserId, {
+        service_id: null,
+        therapist_id: null,
+        date: null,
+        start_at: null,
+        booking_id: null,
+      });
+      await replyMessage(replyToken, [
+        {
+          ...textMessage(`ยกเลิกคิว ${booking.booking_code} เรียบร้อยแล้วค่ะ`),
+          quickReply: BOOK_AGAIN_QUICK_REPLY,
+        },
+      ]);
+      return;
+    } catch (error) {
+      if (error instanceof BookingNotFoundError) {
+        await replyMessage(replyToken, [
+          textMessage("ไม่พบคิวนี้ค่ะ"),
+        ]);
+        return;
+      }
+      if (error instanceof InvalidBookingTransitionError) {
+        await replyMessage(replyToken, [
+          textMessage("คิวนี้ไม่สามารถยกเลิกได้แล้วค่ะ"),
+        ]);
+        return;
+      }
+      throw error;
+    }
+  }
+
+  if (action === "cancel_booking_abort") {
+    await replyMessage(replyToken, [
+      textMessage("รับทราบค่ะ คิวยังคงเดิมไม่มีการเปลี่ยนแปลงค่ะ"),
     ]);
     return;
   }

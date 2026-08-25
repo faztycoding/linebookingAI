@@ -572,6 +572,50 @@ export async function completeBooking(input: {
   return normalizeBooking(data);
 }
 
+export async function cancelOwnBooking(input: {
+  bookingId: string;
+  lineUserId: string;
+}): Promise<Booking> {
+  const booking = await getBookingById(input.bookingId);
+  if (
+    !booking ||
+    booking.source !== "line" ||
+    booking.line_user_id !== input.lineUserId
+  ) {
+    throw new BookingNotFoundError();
+  }
+
+  if (booking.status === "cancelled") {
+    return booking;
+  }
+
+  if (!["hold", "pending_payment", "confirmed"].includes(booking.status)) {
+    throw new InvalidBookingTransitionError();
+  }
+
+  const { data, error } = await getSupabaseAdmin()
+    .from("bookings")
+    .update({ status: "cancelled", note: "Cancelled by customer via LINE" })
+    .eq("id", booking.id)
+    .eq("line_user_id", input.lineUserId)
+    .eq("status", booking.status)
+    .select("*")
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+  if (!data) {
+    const latest = await getBookingById(booking.id);
+    if (latest?.status === "cancelled") {
+      return latest;
+    }
+    throw new InvalidBookingTransitionError();
+  }
+
+  return normalizeBooking(data);
+}
+
 export async function confirmBookingPayment(input: {
   bookingId: string;
   lineUserId: string;

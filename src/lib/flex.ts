@@ -8,6 +8,7 @@ const COLORS = {
   gold: "#B08A45",
   text: "#26332A",
   muted: "#68736B",
+  danger: "#9B3B3B",
 };
 
 export type DateOption = {
@@ -433,12 +434,21 @@ export function paymentSummary(input: {
       footer: {
         type: "box",
         layout: "vertical",
+        spacing: "sm",
         contents: [
           {
             type: "button",
             style: "primary",
             color: COLORS.green,
             action: postback("ชำระแล้ว (Demo)", "confirm_payment", {
+              booking_id: input.booking.id,
+            }),
+          },
+          {
+            type: "button",
+            style: "secondary",
+            height: "sm",
+            action: postback("ยกเลิกคิวนี้", "cancel_booking_confirm", {
               booking_id: input.booking.id,
             }),
           },
@@ -517,6 +527,81 @@ export function bookingConfirmation(input: {
             size: "sm",
             wrap: true,
             margin: "md",
+          },
+        ],
+      },
+      footer: {
+        type: "box",
+        layout: "vertical",
+        contents: [
+          {
+            type: "button",
+            style: "secondary",
+            height: "sm",
+            action: postback("ยกเลิกคิวนี้", "cancel_booking_confirm", {
+              booking_id: input.booking.id,
+            }),
+          },
+        ],
+      },
+    },
+  };
+}
+
+export function cancelConfirmation(input: {
+  bookingId: string;
+  bookingCode: string;
+}): LineMessage {
+  return {
+    type: "flex",
+    altText: "ยืนยันการยกเลิกคิว",
+    contents: {
+      type: "bubble",
+      body: {
+        type: "box",
+        layout: "vertical",
+        spacing: "md",
+        contents: [
+          {
+            type: "text",
+            text: "ยืนยันยกเลิกคิวใช่ไหมคะ",
+            weight: "bold",
+            size: "lg",
+            color: COLORS.text,
+          },
+          {
+            type: "text",
+            text: `รหัสคิว ${input.bookingCode}`,
+            color: COLORS.muted,
+            size: "sm",
+          },
+          {
+            type: "text",
+            text: "หากยกเลิกกระชั้นชิดก่อนเวลานัดหมาย ทางร้านอาจไม่คืนมัดจำตามนโยบายค่ะ",
+            color: COLORS.danger,
+            size: "xs",
+            wrap: true,
+          },
+        ],
+      },
+      footer: {
+        type: "box",
+        layout: "vertical",
+        spacing: "sm",
+        contents: [
+          {
+            type: "button",
+            style: "primary",
+            color: COLORS.danger,
+            action: postback("ยืนยันยกเลิก", "cancel_booking", {
+              booking_id: input.bookingId,
+            }),
+          },
+          {
+            type: "button",
+            style: "secondary",
+            height: "sm",
+            action: postback("ไม่ยกเลิก", "cancel_booking_abort", {}),
           },
         ],
       },

@@ -109,6 +109,17 @@ Local demo implementation complete; external service configuration and real-devi
 - Found a second real-device gap: asking to change/reschedule an already-held time (e.g. "เปลี่ยนเวลาเป็น 16:30") made the AI respond as if it had forgotten the service, because rescheduling has no tool and is explicitly out of scope. Fixed by adding an explicit system-prompt rule to escalate to a human instead of restarting the flow, and synced the same rule into `SPEC.md`
 - Added an automatic "จองบริการเพิ่ม" LINE Quick Reply button on the booking confirmation card, using a shared `book_again` postback that resets the booking state and resends the service carousel in a single reply (LINE reply tokens can only be used once)
 
+## Scope Change: Customer Self-Cancel (25 Aug 2026)
+
+- Approved scope change: customers may now cancel their own `hold`/`pending_payment`/`confirmed` booking directly from LINE. Rescheduling remains out of scope and still escalates to a human. Updated `SPEC.md` (Non-negotiable/Out of scope) and `PHASE2.md` accordingly
+- Added `cancelOwnBooking` in `src/lib/db.ts`: enforces `source === "line"` and exact `line_user_id` ownership, is idempotent for already-cancelled bookings, and uses an optimistic status-conditioned update to avoid double-cancel races
+- Added a two-step confirmation Flex card (`cancelConfirmation`) so a single accidental tap cannot cancel a booking, including a policy notice about late-cancellation deposits
+- Added a "ยกเลิกคิวนี้" button to both the payment summary and booking confirmation cards
+- Added `cancel_booking_confirm`, `cancel_booking`, and `cancel_booking_abort` postback handlers with booking-ID UUID format validation before any database lookup
+- Successful cancellation offers the same "จองบริการเพิ่ม" Quick Reply as a normal confirmation
+- Updated the AI system prompt to route cancel requests to the button flow instead of escalating, while reschedule requests still escalate
+- Adversarial review completed; corrected a reviewer false positive (walk-in bookings have `line_user_id = null`, which can never match a real LINE user ID, so they were already unreachable by this function) and hardened the ownership check further with an explicit `source === "line"` requirement
+
 ## Pending External Gates
 
 1. Create Supabase and run `supabase/schema.sql`
