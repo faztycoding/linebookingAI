@@ -4,7 +4,7 @@ Last updated: 2026-08-25
 
 ## Current Milestone
 
-Phase 3 — Local payment confirmation and hold expiry complete; external end-to-end gate pending
+Phase 5 — Customer-facing presenter, Admin and POS-lite complete locally; external full-flow gate pending
 
 ## Completed
 
@@ -42,6 +42,28 @@ Phase 3 — Local payment confirmation and hold expiry complete; external end-to
 - Added five-minute hold cleanup cron with bearer authentication
 - Added lazy hold cleanup before availability checks and 24-hour webhook dedupe retention cleanup
 
+### Presenter and Admin
+
+- Added a premium Baan Sabai presenter page with LINE QR, benefit framing and customer journey
+- Added responsive shared spa styling without a component library
+- Added an Admin dashboard for today’s bookings with Thai status labels and Demo warnings
+- Added booking totals, confirmed/waiting counts and deposits received
+- Added Supabase Realtime subscription that refreshes joined booking data on changes
+- Added confirm, cancel, no-show and “คุยเอง 30 นาที” actions
+- Added same-origin checks for browser mutations and server-only service-role writes
+- Added graceful no-Supabase fallback so presenter/Admin pages still render for review
+- Added an environment-based HTTP Basic gate for Admin/POS pages and APIs without an auth library
+- Added DB-enforced booking status transition rules
+
+### POS-lite
+
+- Added a responsive two-column POS terminal for confirmed bookings
+- Added automatic service price, deposit and remaining-balance calculation from booking data
+- Added cash/transfer close-bill flow with idempotent conditional completion
+- Added Walk-in creation using the same service duration, 15-minute buffer and exclusion constraint
+- Added today’s sales, queue count and pending-deposit metrics
+- Added POS Realtime refresh and explicit Demo scope warnings for Stock, tax and accounting
+
 ## Verification Evidence
 
 - `npm run lint` — passed with no warnings
@@ -55,6 +77,14 @@ Phase 3 — Local payment confirmation and hold expiry complete; external end-to
 - Adversarial reviews completed for LINE and payment flows
 - PromptPay payload/PNG smoke check — generated an 84-character payload and a 1,653-byte PNG
 - Final build includes webhook, seed, payment QR and hold-release cron routes
+- Presenter page local smoke check — HTTP 200
+- Admin page without Supabase local smoke check — HTTP 200 with fallback state
+- Admin API without Supabase — expected HTTP 503 with Thai message
+- Admin page without Basic credentials — HTTP 401
+- Admin page with valid Basic credentials — HTTP 200
+- POS page with valid Basic credentials — HTTP 200
+- POS API without Basic credentials — HTTP 401
+- Final build includes presenter, Admin, POS-lite, protected mutation APIs and middleware
 
 ## Pending External Gates
 
@@ -68,24 +98,32 @@ Phase 3 — Local payment confirmation and hold expiry complete; external end-to
 8. Confirm expired payment buttons cannot confirm a booking
 9. Send duplicate webhook event IDs and confirm only one reply
 10. Attempt the same hold twice and confirm the second response is Thai, not HTTP 500
+11. Confirm the new booking appears on Admin within two seconds
+12. Close the LINE booking in POS and verify deposit subtraction and daily totals
+13. Create an overlapping Walk-in and confirm the API returns the Thai conflict response
 
 ## Files Touched This Milestone
 
 - `.env.example`
 - `PROGRESS.md`
-- `src/app/api/cron/release-holds/route.ts`
-- `src/app/api/payment/qr/route.ts`
-- `src/lib/booking-flow.ts`
+- `src/middleware.ts`
+- `src/app/globals.css`
+- `src/app/layout.tsx`
+- `src/app/page.tsx`
+- `src/app/admin/page.tsx`
+- `src/app/admin/admin-dashboard.tsx`
+- `src/app/pos/page.tsx`
+- `src/app/pos/pos-terminal.tsx`
+- `src/app/api/admin/bookings/route.ts`
+- `src/app/api/pos/route.ts`
 - `src/lib/db.ts`
-- `src/lib/flex.ts`
-- `src/lib/payment.ts`
-- `vercel.json`
 
 ## Next Steps
 
-1. Build the presenter page and Admin Realtime wow moment
-2. Build POS-lite close-bill and walk-in flow
-3. Run the full real-device customer journey once credentials are configured
+1. Configure external services and pass all real-device gates
+2. Verify Admin/POS Realtime from a separate device
+3. Seed realistic bookings, rehearse three times and record the backup video
+4. Replace Baan Sabai demo branding when customer data arrives
 
 ## Blockers
 

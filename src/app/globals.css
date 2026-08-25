@@ -1,0 +1,49 @@
+@import "tailwindcss";
+
+:root {
+  --spa-ink: #183126;
+  --spa-green: #315c43;
+  --spa-leaf: #78906d;
+  --spa-cream: #f5f1e8;
+  --spa-paper: #fffdf8;
+  --spa-gold: #b08a45;
+  --spa-line: rgba(49, 92, 67, 0.16);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--spa-cream);
+}
+
+body {
+  min-height: 100vh;
+  margin: 0;
+  background:
+    radial-gradient(circle at 10% 5%, rgba(120, 144, 109, 0.2), transparent 28rem),
+    radial-gradient(circle at 92% 10%, rgba(176, 138, 69, 0.12), transparent 26rem),
+    var(--spa-cream);
+  color: var(--spa-ink);
+  font-family: "Avenir Next", "Noto Sans Thai", "Thonburi", system-ui, sans-serif;
+}
+
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.spa-card {
+  border: 1px solid var(--spa-line);
+  background: rgba(255, 253, 248, 0.86);
+  box-shadow: 0 24px 70px rgba(31, 58, 43, 0.08);
+  backdrop-filter: blur(18px);
+}
+
+.spa-grid {
+  background-image:
+    linear-gradient(var(--spa-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--spa-line) 1px, transparent 1px);
+  background-size: 32px 32px;
+}

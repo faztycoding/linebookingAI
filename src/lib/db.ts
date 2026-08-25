@@ -60,6 +60,11 @@ export type Booking = {
   created_at: string;
 };
 
+export type BookingView = Booking & {
+  service: Service | null;
+  therapist: Therapist | null;
+};
+
 export type Conversation = {
   line_user_id: string;
   state: Record<string, unknown>;
@@ -86,6 +91,13 @@ export class BookingNotFoundError extends Error {
   constructor() {
     super("Booking was not found");
     this.name = "BookingNotFoundError";
+  }
+}
+
+export class InvalidBookingTransitionError extends Error {
+  constructor() {
+    super("Booking status transition is not allowed");
+    this.name = "InvalidBookingTransitionError";
   }
 }
 
@@ -359,6 +371,205 @@ export async function getBookingById(id: string): Promise<Booking | null> {
   }
 
   return data ? normalizeBooking(data) : null;
+}
+
+export function getBangkokDate(value = new Date()): string {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Bangkok",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(value);
+  const get = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((part) => part.type === type)?.value ?? "";
+  return `${get("year")}-${get("month")}-${get("day")}`;
+}
+
+function rangeStart(value: string): number {
+  const match = value.match(/^[[(]"?([^",]+)"?,/);
+  const timestamp = match ? new Date(match[1]).getTime() : Number.NaN;
+  return Number.isNaN(timestamp) ? Number.MAX_SAFE_INTEGER : timestamp;
+}
+
+export async function getBookingsForDate(
+  date = getBangkokDate(),
+): Promise<BookingView[]> {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    throw new Error("Booking date must use YYYY-MM-DD");
+  }
+
+  const start = new Date(`${date}T00:00:00+07:00`);
+  const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
+  const [{ data, error }, services, therapists] = await Promise.all([
+    getSupabaseAdmin()
+      .from("bookings")
+      .select("*")
+      .overlaps(
+        "time_range",
+        `[${start.toISOString()},${end.toISOString()})`,
+      ),
+    getServices(),
+    getTherapists(),
+  ]);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  const serviceById = new Map(services.map((service) => [service.id, service]));
+  const therapistById = new Map(
+    therapists.map((therapist) => [therapist.id, therapist]),
+  );
+
+  return (data ?? [])
+    .map((row) => normalizeBooking(row))
+    .map((booking) => ({
+      ...booking,
+      service: booking.service_id
+        ? (serviceById.get(booking.service_id) ?? null)
+        : null,
+      therapist: therapistById.get(booking.therapist_id) ?? null,
+    }))
+    .sort((left, right) => rangeStart(left.time_range) - rangeStart(right.time_range));
+}
+
+export async function updateBookingStatus(
+  bookingId: string,
+  status: "confirmed" | "cancelled" | "no_show",
+): Promise<Booking> {
+  const booking = await getBookingById(bookingId);
+  if (!booking) {
+    throw new BookingNotFoundError();
+  }
+  if (booking.status === status) {
+    return booking;
+  }
+
+  const allowed: Partial<Record<BookingStatus, BookingStatus[]>> = {
+    hold: ["confirmed", "cancelled"],
+    pending_payment: ["confirmed", "cancelled"],
+    confirmed: ["cancelled", "no_show"],
+  };
+  if (!allowed[booking.status]?.includes(status)) {
+    throw new InvalidBookingTransitionError();
+  }
+
+  const { data, error } = await getSupabaseAdmin()
+    .from("bookings")
+    .update({ status })
+    .eq("id", bookingId)
+    .eq("status", booking.status)
+    .select("*")
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+  if (!data) {
+    throw new InvalidBookingTransitionError();
+  }
+
+  return normalizeBooking(data);
+}
+
+export async function pauseAiForBooking(bookingId: string): Promise<void> {
+  const booking = await getBookingById(bookingId);
+  if (!booking?.line_user_id) {
+    throw new BookingNotFoundError();
+  }
+
+  await markConversationEscalated(
+    booking.line_user_id,
+    "Admin took over the conversation",
+  );
+}
+
+export async function createWalkInBooking(input: {
+  customerName: string;
+  serviceId: string;
+  therapistId: string;
+  startAt: string;
+}): Promise<Booking> {
+  const [service, therapist] = await Promise.all([
+    getServiceById(input.serviceId),
+    getTherapistById(input.therapistId),
+  ]);
+  if (!service || !therapist) {
+    throw new BookingNotFoundError();
+  }
+  if (!/(Z|[+-]\d{2}:\d{2})$/.test(input.startAt)) {
+    throw new Error("Walk-in start time must include a timezone offset");
+  }
+
+  const start = new Date(input.startAt);
+  if (Number.isNaN(start.getTime())) {
+    throw new Error("Walk-in start time is invalid");
+  }
+  const end = new Date(
+    start.getTime() + (service.duration_min + 15) * 60_000,
+  );
+
+  const { data, error } = await getSupabaseAdmin()
+    .from("bookings")
+    .insert({
+      customer_name: input.customerName.trim() || "ลูกค้า Walk-in",
+      service_id: service.id,
+      therapist_id: therapist.id,
+      time_range: `[${start.toISOString()},${end.toISOString()})`,
+      status: "confirmed",
+      source: "walkin",
+      deposit_amount: 0,
+      total_amount: service.price,
+      paid_amount: 0,
+    })
+    .select("*")
+    .single();
+
+  if (error?.code === "23P01") {
+    throw new BookingConflictError();
+  }
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return normalizeBooking(data);
+}
+
+export async function completeBooking(input: {
+  bookingId: string;
+  paymentMethod: "cash" | "transfer";
+}): Promise<Booking> {
+  const booking = await getBookingById(input.bookingId);
+  if (!booking) {
+    throw new BookingNotFoundError();
+  }
+  if (booking.status === "completed") {
+    return booking;
+  }
+  if (booking.status !== "confirmed") {
+    throw new InvalidBookingTransitionError();
+  }
+
+  const { data, error } = await getSupabaseAdmin()
+    .from("bookings")
+    .update({
+      status: "completed",
+      paid_amount: booking.total_amount,
+      payment_method: input.paymentMethod,
+    })
+    .eq("id", booking.id)
+    .eq("status", "confirmed")
+    .select("*")
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+  if (!data) {
+    throw new InvalidBookingTransitionError();
+  }
+
+  return normalizeBooking(data);
 }
 
 export async function confirmBookingPayment(input: {
