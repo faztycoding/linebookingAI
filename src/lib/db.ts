@@ -361,3 +361,124 @@ export async function markConversationEscalated(
     throw new Error(error.message);
   }
 }
+
+export async function getConversation(
+  lineUserId: string,
+): Promise<Conversation> {
+  const { data, error } = await getSupabaseAdmin()
+    .from("conversations")
+    .select("*")
+    .eq("line_user_id", lineUserId)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  if (!data) {
+    return {
+      line_user_id: lineUserId,
+      state: {},
+      history: [],
+      ai_paused_until: null,
+      updated_at: new Date(0).toISOString(),
+    };
+  }
+
+  return {
+    line_user_id: String(data.line_user_id),
+    state:
+      data.state && typeof data.state === "object"
+        ? (data.state as Record<string, unknown>)
+        : {},
+    history: Array.isArray(data.history) ? data.history : [],
+    ai_paused_until: data.ai_paused_until
+      ? String(data.ai_paused_until)
+      : null,
+    updated_at: String(data.updated_at),
+  };
+}
+
+export async function saveConversation(input: {
+  lineUserId: string;
+  state: Record<string, unknown>;
+  history: unknown[];
+  aiPausedUntil?: string | null;
+}): Promise<void> {
+  const { error } = await getSupabaseAdmin().from("conversations").upsert({
+    line_user_id: input.lineUserId,
+    state: input.state,
+    history: input.history.slice(-8),
+    ai_paused_until: input.aiPausedUntil ?? null,
+    updated_at: new Date().toISOString(),
+  });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+}
+
+export async function saveConversationHistory(
+  lineUserId: string,
+  history: unknown[],
+): Promise<void> {
+  const { error } = await getSupabaseAdmin().from("conversations").upsert(
+    {
+      line_user_id: lineUserId,
+      history: history.slice(-8),
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "line_user_id" },
+  );
+
+  if (error) {
+    throw new Error(error.message);
+  }
+}
+
+export async function mergeConversationState(
+  lineUserId: string,
+  patch: Record<string, unknown>,
+): Promise<Conversation> {
+  const conversation = await getConversation(lineUserId);
+  const next = {
+    ...conversation,
+    state: { ...conversation.state, ...patch },
+    updated_at: new Date().toISOString(),
+  };
+
+  await saveConversation({
+    lineUserId,
+    state: next.state,
+    history: next.history,
+    aiPausedUntil: next.ai_paused_until,
+  });
+
+  return next;
+}
+
+export async function claimWebhookEvent(eventId: string): Promise<boolean> {
+  const { error } = await getSupabaseAdmin()
+    .from("webhook_events")
+    .insert({ event_id: eventId });
+
+  if (error?.code === "23505") {
+    return false;
+  }
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return true;
+}
+
+export async function releaseWebhookEvent(eventId: string): Promise<void> {
+  const { error } = await getSupabaseAdmin()
+    .from("webhook_events")
+    .delete()
+    .eq("event_id", eventId);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+}
