@@ -106,6 +106,7 @@ Local demo implementation complete; external service configuration and real-devi
 - Found and fixed a gap: free-text questions after a button-driven selection (e.g., asking "16:30 ว่างไหม") did not carry forward the already-selected service/therapist/date, because that state lives separately from the AI's message history. Fixed by injecting a resolved selection summary into the system prompt on every AI turn
 - Confirmed by design (not a bug): sending any new free-text message after a completed booking naturally restarts the flow by prompting the AI to offer services again, so no explicit "book again" button is needed
 - Confirmed by design (not a bug): Admin shows only the current day's bookings by default; a booking made for a future date will not appear until that date is queried or arrives
+- Found a second real-device gap: asking to change/reschedule an already-held time (e.g. "เปลี่ยนเวลาเป็น 16:30") made the AI respond as if it had forgotten the service, because rescheduling has no tool and is explicitly out of scope. Fixed by adding an explicit system-prompt rule to escalate to a human instead of restarting the flow, and synced the same rule into `SPEC.md`
 
 ## Pending External Gates
 
