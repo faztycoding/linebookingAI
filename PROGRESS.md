@@ -135,7 +135,11 @@ Scoped to the low-risk options approved by the user, deferring vector-search RAG
 - Added `npm run check:regression` script entry
 - Adversarial review completed; fixed one real issue (the profile write was overwriting the whole object instead of merging with existing fields) and declined one suggested change (explicitly re-passing `profile` on state resets) since the shallow-merge design already preserves untouched keys and the extra code would be redundant
 
-## Pending External Gates
+## Real-Device Bug: Generic Start Intent (26 Aug 2026)
+
+- Found a real-device gap: a generic message meaning "start using the service" made the AI reply that it would show the service menu, but it never actually called `get_services` in that turn, so no Flex carousel was sent at all. This happened because `toolExecutions` was empty for that turn, and the text-only branch returns immediately without any card
+- Fixed by adding an explicit system-prompt rule: any generic intent to start booking or see the menu, without a specific service named, must call `get_services` in the same turn instead of asking a redundant clarifying question. Synced into `SPEC.md`
+- Added a regression check asserting this rule text stays present (15/15 checks passing)
 
 1. Create Supabase and run `supabase/schema.sql`
 2. Configure Supabase values and call the protected seed route

@@ -150,6 +150,15 @@ check("ai.ts still contains the prompt-injection defense rule", () => {
   assert.match(source, /ห้ามเปิดเผย.+system prompt/);
 });
 
+check("ai.ts forces get_services when the customer just wants to start, without asking again", () => {
+  const source = readFileSync(
+    path.join(__dirname, "..", "src", "lib", "ai.ts"),
+    "utf8",
+  );
+  assert.match(source, /เริ่มใช้บริการ/);
+  assert.match(source, /ให้เรียก get_services ทันที/);
+});
+
 check("ai.ts still injects the current selection summary into the prompt", () => {
   const source = readFileSync(
     path.join(__dirname, "..", "src", "lib", "ai.ts"),
