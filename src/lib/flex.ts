@@ -1,4 +1,4 @@
-import type { Service, Therapist } from "@/lib/db";
+import type { Booking, Service, Therapist } from "@/lib/db";
 import type { LineMessage } from "@/lib/line";
 import type { AvailableSlot } from "@/lib/tools";
 
@@ -311,6 +311,212 @@ export function timeGrid(slots: AvailableSlot[]): LineMessage {
             size: "xs",
             wrap: true,
             align: "center",
+          },
+        ],
+      },
+    },
+  };
+}
+
+function appointmentLabel(startAt: string): string {
+  return new Intl.DateTimeFormat("th-TH", {
+    timeZone: "Asia/Bangkok",
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(new Date(startAt));
+}
+
+export function paymentSummary(input: {
+  booking: Booking;
+  service: Service;
+  therapist: Therapist;
+  startAt: string;
+  qrUrl: string;
+}): LineMessage {
+  return {
+    type: "flex",
+    altText: `ชำระมัดจำ ${price(input.booking.deposit_amount)}`,
+    contents: {
+      type: "bubble",
+      hero: {
+        type: "image",
+        url: input.qrUrl,
+        size: "full",
+        aspectRatio: "1:1",
+        aspectMode: "fit",
+        backgroundColor: "#FFFFFF",
+      },
+      header: {
+        type: "box",
+        layout: "vertical",
+        backgroundColor: COLORS.green,
+        contents: [
+          {
+            type: "text",
+            text: "สรุปการจองและมัดจำ",
+            color: "#FFFFFF",
+            weight: "bold",
+            size: "xl",
+          },
+        ],
+      },
+      body: {
+        type: "box",
+        layout: "vertical",
+        spacing: "md",
+        contents: [
+          {
+            type: "text",
+            text: input.service.name,
+            color: COLORS.text,
+            weight: "bold",
+            size: "lg",
+            wrap: true,
+          },
+          {
+            type: "text",
+            text: input.therapist.nickname ?? input.therapist.name,
+            color: COLORS.muted,
+            size: "sm",
+          },
+          {
+            type: "text",
+            text: appointmentLabel(input.startAt),
+            color: COLORS.muted,
+            size: "sm",
+          },
+          { type: "separator", margin: "md" },
+          {
+            type: "box",
+            layout: "horizontal",
+            margin: "md",
+            contents: [
+              { type: "text", text: "ยอดรวม", color: COLORS.muted, size: "sm" },
+              {
+                type: "text",
+                text: price(input.booking.total_amount),
+                color: COLORS.text,
+                align: "end",
+                size: "sm",
+              },
+            ],
+          },
+          {
+            type: "box",
+            layout: "horizontal",
+            contents: [
+              {
+                type: "text",
+                text: "มัดจำ 30%",
+                color: COLORS.green,
+                weight: "bold",
+              },
+              {
+                type: "text",
+                text: price(input.booking.deposit_amount),
+                color: COLORS.gold,
+                weight: "bold",
+                align: "end",
+              },
+            ],
+          },
+          {
+            type: "text",
+            text: "คิวถูกล็อกไว้ 10 นาที สำหรับ Demo ให้กดปุ่มหลังสแกน QR โดยระบบยังไม่ตรวจสลิปอัตโนมัติ",
+            color: COLORS.muted,
+            size: "xs",
+            wrap: true,
+            margin: "md",
+          },
+        ],
+      },
+      footer: {
+        type: "box",
+        layout: "vertical",
+        contents: [
+          {
+            type: "button",
+            style: "primary",
+            color: COLORS.green,
+            action: postback("ชำระแล้ว (Demo)", "confirm_payment", {
+              booking_id: input.booking.id,
+            }),
+          },
+        ],
+      },
+    },
+  };
+}
+
+export function bookingConfirmation(input: {
+  booking: Booking;
+  service: Service;
+  therapist: Therapist;
+  startAt: string;
+}): LineMessage {
+  return {
+    type: "flex",
+    altText: `ยืนยันการจอง ${input.booking.booking_code}`,
+    contents: {
+      type: "bubble",
+      header: {
+        type: "box",
+        layout: "vertical",
+        backgroundColor: COLORS.green,
+        paddingAll: "22px",
+        contents: [
+          {
+            type: "text",
+            text: "ยืนยันการจองแล้ว (Demo)",
+            color: "#FFFFFF",
+            weight: "bold",
+            size: "xl",
+            align: "center",
+          },
+          {
+            type: "text",
+            text: `รหัส ${input.booking.booking_code}`,
+            color: "#DCE9DB",
+            size: "sm",
+            align: "center",
+            margin: "sm",
+          },
+        ],
+      },
+      body: {
+        type: "box",
+        layout: "vertical",
+        spacing: "md",
+        contents: [
+          {
+            type: "text",
+            text: input.service.name,
+            color: COLORS.text,
+            weight: "bold",
+            size: "lg",
+            wrap: true,
+          },
+          {
+            type: "text",
+            text: input.therapist.nickname ?? input.therapist.name,
+            color: COLORS.muted,
+            size: "sm",
+          },
+          {
+            type: "text",
+            text: appointmentLabel(input.startAt),
+            color: COLORS.muted,
+            size: "sm",
+          },
+          { type: "separator", margin: "md" },
+          {
+            type: "text",
+            text: `บันทึกมัดจำ Demo ${price(input.booking.paid_amount)} เหลือชำระที่ร้าน ${price(input.booking.total_amount - input.booking.paid_amount)}`,
+            color: COLORS.green,
+            weight: "bold",
+            size: "sm",
+            wrap: true,
+            margin: "md",
           },
         ],
       },

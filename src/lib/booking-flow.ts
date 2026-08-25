@@ -2,19 +2,25 @@ import "server-only";
 
 import { runReceptionist, type ToolExecution } from "@/lib/ai";
 import {
+  BookingExpiredError,
+  BookingNotFoundError,
   claimWebhookEvent,
+  confirmBookingPayment,
   getConversation,
   getServiceById,
   getTherapistById,
   getTherapists,
   mergeConversationState,
   releaseWebhookEvent,
+  type Booking,
   type Service,
   type Therapist,
 } from "@/lib/db";
 import {
+  bookingConfirmation,
   datePicker,
   getNextSevenDates,
+  paymentSummary,
   serviceCarousel,
   therapistList,
   timeGrid,
@@ -27,6 +33,7 @@ import {
   startChatLoading,
   textMessage,
 } from "@/lib/line";
+import { getPaymentQrUrl } from "@/lib/payment";
 import {
   executeTool,
   getAvailableSlots,
@@ -48,6 +55,22 @@ function resultArray<T>(
 ): T[] {
   const value = execution.result[key];
   return Array.isArray(value) ? (value as T[]) : [];
+}
+
+function resultBooking(value: unknown): Booking | null {
+  return value &&
+    typeof value === "object" &&
+    "id" in value &&
+    typeof value.id === "string" &&
+    "booking_code" in value &&
+    typeof value.booking_code === "string"
+    ? (value as Booking)
+    : null;
+}
+
+function bookingStart(timeRange: string): string | null {
+  const match = timeRange.match(/^[[(]"?([^",]+)"?,/);
+  return match?.[1] ?? null;
 }
 
 async function replyForAiResult(
@@ -244,7 +267,8 @@ async function handlePostback(
       { lineUserId },
     );
 
-    if (result.ok !== true || !result.booking || typeof result.booking !== "object") {
+    const booking = resultBooking(result.booking);
+    if (result.ok !== true || !booking) {
       await replyMessage(replyToken, [
         textMessage(
           typeof result.message === "string"
@@ -255,18 +279,85 @@ async function handlePostback(
       return;
     }
 
-    const bookingId =
-      "id" in result.booking && typeof result.booking.id === "string"
-        ? result.booking.id
-        : null;
+    const [service, therapist] = await Promise.all([
+      getServiceById(serviceId),
+      getTherapistById(therapistId),
+    ]);
+    if (!service || !therapist) {
+      await replyMessage(replyToken, [
+        textMessage("เตรียมข้อมูลชำระเงินไม่สำเร็จค่ะ กรุณาติดต่อแอดมิน"),
+      ]);
+      return;
+    }
+
     await mergeConversationState(lineUserId, {
       start_at: startAt,
-      booking_id: bookingId,
+      booking_id: booking.id,
     });
     await replyMessage(replyToken, [
-      textMessage(
-        "ล็อกคิวไว้ให้ 10 นาทีแล้วค่ะ ขั้นถัดไปเป็นการชำระมัดจำ ระบบจะแสดง QR ให้ในข้อความถัดไปค่ะ",
-      ),
+      textMessage("ล็อกคิวไว้ให้ 10 นาทีแล้วค่ะ สแกน QR เพื่อดูขั้นตอนมัดจำได้เลยค่ะ"),
+      paymentSummary({
+        booking,
+        service,
+        therapist,
+        startAt,
+        qrUrl: getPaymentQrUrl(booking.id),
+      }),
+    ]);
+    return;
+  }
+
+  if (action === "confirm_payment") {
+    const bookingId = params.get("booking_id");
+    if (!bookingId) {
+      await replyMessage(replyToken, [
+        textMessage("ไม่พบรายการชำระเงินค่ะ กรุณาเริ่มจองใหม่"),
+      ]);
+      return;
+    }
+
+    let booking: Booking;
+    try {
+      booking = await confirmBookingPayment({ bookingId, lineUserId });
+    } catch (error) {
+      if (error instanceof BookingExpiredError) {
+        await replyMessage(replyToken, [
+          textMessage("คิวที่ล็อกไว้หมดเวลาแล้วค่ะ กรุณาเลือกเวลาใหม่"),
+        ]);
+        return;
+      }
+      if (error instanceof BookingNotFoundError) {
+        await replyMessage(replyToken, [
+          textMessage("ไม่พบรายการจองนี้ค่ะ กรุณาติดต่อแอดมิน"),
+        ]);
+        return;
+      }
+      throw error;
+    }
+
+    const [service, therapist] = await Promise.all([
+      booking.service_id ? getServiceById(booking.service_id) : null,
+      getTherapistById(booking.therapist_id),
+    ]);
+    const startAt =
+      stateString(conversation.state, "booking_id") === booking.id
+        ? stateString(conversation.state, "start_at")
+        : bookingStart(booking.time_range);
+
+    if (!service || !therapist || !startAt) {
+      await replyMessage(replyToken, [
+        textMessage("ยืนยันคิวแล้วค่ะ กรุณาแจ้งรหัสจองกับแอดมินเมื่อมาถึงร้าน"),
+      ]);
+      return;
+    }
+
+    await mergeConversationState(lineUserId, {
+      booking_id: booking.id,
+      payment_confirmed: true,
+    });
+    await replyMessage(replyToken, [
+      textMessage("บันทึกการชำระแบบ Demo และยืนยันคิวเรียบร้อยแล้วค่ะ"),
+      bookingConfirmation({ booking, service, therapist, startAt }),
     ]);
     return;
   }

@@ -75,6 +75,20 @@ export class BookingConflictError extends Error {
   }
 }
 
+export class BookingExpiredError extends Error {
+  constructor() {
+    super("Booking hold has expired");
+    this.name = "BookingExpiredError";
+  }
+}
+
+export class BookingNotFoundError extends Error {
+  constructor() {
+    super("Booking was not found");
+    this.name = "BookingNotFoundError";
+  }
+}
+
 let adminClient: SupabaseClient | undefined;
 
 export function getSupabaseAdmin(): SupabaseClient {
@@ -331,6 +345,91 @@ export async function createHoldBooking(input: {
   }
 
   return normalizeBooking(data);
+}
+
+export async function getBookingById(id: string): Promise<Booking | null> {
+  const { data, error } = await getSupabaseAdmin()
+    .from("bookings")
+    .select("*")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data ? normalizeBooking(data) : null;
+}
+
+export async function confirmBookingPayment(input: {
+  bookingId: string;
+  lineUserId: string;
+}): Promise<Booking> {
+  const booking = await getBookingById(input.bookingId);
+  if (!booking || booking.line_user_id !== input.lineUserId) {
+    throw new BookingNotFoundError();
+  }
+
+  if (booking.status === "confirmed") {
+    return booking;
+  }
+
+  const now = new Date();
+  if (
+    !booking.hold_expires_at ||
+    new Date(booking.hold_expires_at).getTime() <= now.getTime()
+  ) {
+    await getSupabaseAdmin()
+      .from("bookings")
+      .update({ status: "cancelled", note: "Hold expired before confirmation" })
+      .eq("id", booking.id)
+      .in("status", ["hold", "pending_payment"]);
+    throw new BookingExpiredError();
+  }
+
+  const { data, error } = await getSupabaseAdmin()
+    .from("bookings")
+    .update({
+      status: "confirmed",
+      paid_amount: booking.deposit_amount,
+      payment_method: "promptpay_demo",
+      hold_expires_at: null,
+      note: "Demo payment confirmed manually",
+    })
+    .eq("id", booking.id)
+    .eq("line_user_id", input.lineUserId)
+    .in("status", ["hold", "pending_payment"])
+    .gt("hold_expires_at", now.toISOString())
+    .select("*")
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+  if (!data) {
+    const latest = await getBookingById(booking.id);
+    if (latest?.status === "confirmed") {
+      return latest;
+    }
+    throw new BookingExpiredError();
+  }
+
+  return normalizeBooking(data);
+}
+
+export async function deleteOldWebhookEvents(hours = 24): Promise<number> {
+  const cutoff = new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();
+  const { data, error } = await getSupabaseAdmin()
+    .from("webhook_events")
+    .delete()
+    .lt("received_at", cutoff)
+    .select("event_id");
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data?.length ?? 0;
 }
 
 export async function markConversationEscalated(

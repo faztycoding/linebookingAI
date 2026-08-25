@@ -4,7 +4,7 @@ Last updated: 2026-08-25
 
 ## Current Milestone
 
-Phase 2 — Local AI/LINE booking journey complete; external Supabase/Anthropic/LINE gate pending
+Phase 3 — Local payment confirmation and hold expiry complete; external end-to-end gate pending
 
 ## Completed
 
@@ -32,6 +32,16 @@ Phase 2 — Local AI/LINE booking journey complete; external Supabase/Anthropic/
 - Added follow-event welcome flow and Thai fallback messages
 - Limited LINE replies to five messages and postback data to 300 characters
 
+### Deposit and Confirmation
+
+- Added signed PromptPay QR URLs with HMAC validation and HTTPS enforcement
+- Added a server-side PNG QR route bound to booking amount, status and hold expiry
+- Added a customer-visible payment summary that clearly labels manual Demo confirmation
+- Added owner-checked, expiry-checked and idempotent mock payment confirmation
+- Added a booking confirmation Flex card with booking code, deposit and remaining balance
+- Added five-minute hold cleanup cron with bearer authentication
+- Added lazy hold cleanup before availability checks and 24-hour webhook dedupe retention cleanup
+
 ## Verification Evidence
 
 - `npm run lint` — passed with no warnings
@@ -42,7 +52,9 @@ Phase 2 — Local AI/LINE booking journey complete; external Supabase/Anthropic/
 - Local signed text event — HTTP 200 before background processing
 - Local invalid signature — HTTP 401 with Thai response
 - Missing Supabase configuration — reported in background logs without delaying webhook acknowledgement
-- Adversarial review completed; fixed history/state overwrite risk, event ordering, event validation and postback size validation
+- Adversarial reviews completed for LINE and payment flows
+- PromptPay payload/PNG smoke check — generated an 84-character payload and a 1,653-byte PNG
+- Final build includes webhook, seed, payment QR and hold-release cron routes
 
 ## Pending External Gates
 
@@ -52,27 +64,28 @@ Phase 2 — Local AI/LINE booking journey complete; external Supabase/Anthropic/
 4. Configure real LINE channel credentials and OA URL
 5. Deploy to Vercel and set the LINE webhook URL
 6. Verify DB-driven price changes in a real LINE conversation
-7. Complete service → therapist → date → time → hold on a physical phone
-8. Send duplicate webhook event IDs and confirm only one reply
-9. Attempt the same hold twice and confirm the second response is Thai, not HTTP 500
+7. Complete service → therapist → date → time → QR → Demo confirmation on a physical phone
+8. Confirm expired payment buttons cannot confirm a booking
+9. Send duplicate webhook event IDs and confirm only one reply
+10. Attempt the same hold twice and confirm the second response is Thai, not HTTP 500
 
 ## Files Touched This Milestone
 
+- `.env.example`
 - `PROGRESS.md`
-- `src/app/api/line/webhook/route.ts`
-- `src/lib/ai.ts`
+- `src/app/api/cron/release-holds/route.ts`
+- `src/app/api/payment/qr/route.ts`
 - `src/lib/booking-flow.ts`
 - `src/lib/db.ts`
 - `src/lib/flex.ts`
-- `src/lib/line.ts`
+- `src/lib/payment.ts`
+- `vercel.json`
 
 ## Next Steps
 
-1. Add PromptPay deposit generation and booking confirmation postback
-2. Add hold release cron/lazy fallback
-3. Build the presenter page and Admin Realtime wow moment
-4. Build POS-lite close-bill and walk-in flow
-5. Run the full real-device customer journey once credentials are configured
+1. Build the presenter page and Admin Realtime wow moment
+2. Build POS-lite close-bill and walk-in flow
+3. Run the full real-device customer journey once credentials are configured
 
 ## Blockers
 
