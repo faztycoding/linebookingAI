@@ -14,6 +14,7 @@ Local demo implementation complete; external service configuration and real-devi
 - Added pinned Supabase, Anthropic and QR dependencies with 0 known vulnerabilities
 - Added environment contract without real credentials
 - Added executable Supabase schema, booking exclusion constraint and Realtime publication setup
+- Enabled Row Level Security on every table with no anon/authenticated policies except a read-only `bookings` policy, since the public anon key is exposed in Admin/POS client bundles and all server access uses the service-role key
 - Added Baan Sabai demo seed for 5 services, 3 therapists, 14 days of shifts and shop information
 - Added server-only DB access and all six approved tools
 - Implemented 30-minute slots, service duration, 15-minute room buffer, 10-minute hold and `23P01` Thai conflict mapping

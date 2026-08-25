@@ -73,6 +73,18 @@ create table shop_info (
   value text not null
 );
 
+-- All application access uses SUPABASE_SERVICE_ROLE_KEY server-side, which
+-- bypasses RLS. RLS is still enabled on every table (with no policies) so the
+-- public NEXT_PUBLIC_SUPABASE_ANON_KEY cannot read or write anything by
+-- default. bookings is the only table anon may read, and only for the
+-- Admin/POS Realtime dashboards.
+alter table services enable row level security;
+alter table therapists enable row level security;
+alter table therapist_shifts enable row level security;
+alter table conversations enable row level security;
+alter table webhook_events enable row level security;
+alter table shop_info enable row level security;
+
 alter table bookings enable row level security;
 grant select on table bookings to anon;
 create policy "Demo bookings are readable for realtime"
