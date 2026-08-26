@@ -13,7 +13,16 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 import assert from "node:assert/strict";
 
-import { getNextSevenDates, serviceCarousel, timeGrid } from "../src/lib/flex.ts";
+import {
+  bookingConfirmation,
+  cancelConfirmation,
+  datePicker,
+  getNextSevenDates,
+  paymentSummary,
+  serviceCarousel,
+  therapistList,
+  timeGrid,
+} from "../src/lib/flex.ts";
 import { verifyLineSignature } from "../src/lib/line.ts";
 import {
   buildRichMenuImage,
@@ -78,6 +87,69 @@ check("serviceCarousel accepts a normal-sized service without throwing", () => {
 
   const message = serviceCarousel([service]);
   assert.equal(message.type, "flex");
+});
+
+check("all customer Flex cards use the cream-gold-olive brand palette", () => {
+  const service = {
+    id: "11111111-1111-4111-8111-111111111111",
+    name: "นวดไทยเพื่อผ่อนคลาย",
+    name_en: null,
+    description: "บริการสาธิต",
+    duration_min: 60,
+    price: 500,
+    active: true,
+    sort_order: 0,
+  };
+  const therapist = {
+    id: "22222222-2222-4222-8222-222222222222",
+    name: "พนักงานสาธิต",
+    nickname: "คุณเมย์",
+    specialty: "นวดเพื่อผ่อนคลาย",
+    active: true,
+  };
+  const booking = {
+    id: "33333333-3333-4333-8333-333333333333",
+    booking_code: "DEMO01",
+    line_user_id: "demo-line-user",
+    customer_name: "ลูกค้าสาธิต",
+    customer_phone: null,
+    service_id: service.id,
+    therapist_id: therapist.id,
+    time_range: "[\"2026-08-27T03:00:00.000Z\",\"2026-08-27T04:15:00.000Z\")",
+    status: "confirmed",
+    source: "line",
+    deposit_amount: 150,
+    total_amount: 500,
+    paid_amount: 150,
+    payment_method: "promptpay_demo",
+    hold_expires_at: null,
+    note: null,
+    created_at: "2026-08-26T00:00:00.000Z",
+  };
+  const startAt = "2026-08-27T03:00:00.000Z";
+  const messages = [
+    serviceCarousel([service]),
+    therapistList([therapist]),
+    datePicker([{ date: "2026-08-27", label: "พฤ. 27 ส.ค." }]),
+    timeGrid([{ start_at: startAt, label: "10:00 น." }]),
+    paymentSummary({
+      booking,
+      service,
+      therapist,
+      startAt,
+      qrUrl: "https://linebooking-ai.vercel.app/api/payment/qr?booking_id=demo",
+    }),
+    bookingConfirmation({ booking, service, therapist, startAt }),
+    cancelConfirmation({ bookingId: booking.id, bookingCode: booking.booking_code }),
+  ];
+  const payload = JSON.stringify(messages);
+  for (const color of ["#5A6345", "#FFF8EB", "#F4E5C8", "#C89B4B"]) {
+    assert.ok(payload.includes(color), `expected brand color ${color}`);
+  }
+  assert.ok(payload.includes("BAAN SABAI • SPA & WELLNESS"));
+  assert.ok(!payload.includes("#365C42"));
+  assert.ok(!payload.includes("#EEF4EC"));
+  assert.ok(!payload.includes("#FFFDF7"));
 });
 
 // --- flex.ts: timeGrid must not hide a full day's slots ---

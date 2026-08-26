@@ -3,12 +3,15 @@ import type { LineMessage } from "@/lib/line";
 import type { AvailableSlot } from "@/lib/tools";
 
 const COLORS = {
-  green: "#365C42",
-  pale: "#EEF4EC",
-  gold: "#B08A45",
-  text: "#26332A",
-  muted: "#68736B",
-  danger: "#9B3B3B",
+  olive: "#5A6345",
+  oliveDark: "#434B35",
+  cream: "#FFF8EB",
+  creamDeep: "#F4E5C8",
+  gold: "#C89B4B",
+  goldPale: "#E7C98D",
+  text: "#3F4935",
+  muted: "#766F5E",
+  danger: "#A44F45",
 };
 
 export type DateOption = {
@@ -82,22 +85,31 @@ export function serviceCarousel(services: Service[]): LineMessage {
         header: {
           type: "box",
           layout: "vertical",
-          backgroundColor: COLORS.green,
+          backgroundColor: COLORS.olive,
           paddingAll: "18px",
           contents: [
             {
               type: "text",
+              text: "BAAN SABAI • SPA & WELLNESS",
+              color: COLORS.cream,
+              weight: "bold",
+              size: "xxs",
+            },
+            {
+              type: "text",
               text: service.name,
-              color: "#FFFFFF",
+              color: COLORS.cream,
               weight: "bold",
               size: "lg",
               wrap: true,
+              margin: "sm",
             },
           ],
         },
         body: {
           type: "box",
           layout: "vertical",
+          backgroundColor: COLORS.cream,
           spacing: "md",
           contents: [
             {
@@ -121,7 +133,7 @@ export function serviceCarousel(services: Service[]): LineMessage {
                 {
                   type: "text",
                   text: price(service.price),
-                  color: COLORS.gold,
+                  color: COLORS.oliveDark,
                   weight: "bold",
                   align: "end",
                   size: "md",
@@ -133,11 +145,13 @@ export function serviceCarousel(services: Service[]): LineMessage {
         footer: {
           type: "box",
           layout: "vertical",
+          backgroundColor: COLORS.cream,
+          paddingTop: "0px",
           contents: [
             {
               type: "button",
               style: "primary",
-              color: COLORS.green,
+              color: COLORS.olive,
               action: postback("เลือกบริการนี้", "select_service", {
                 id: service.id,
               }),
@@ -158,14 +172,24 @@ export function therapistList(therapists: Therapist[]): LineMessage {
       header: {
         type: "box",
         layout: "vertical",
-        backgroundColor: COLORS.pale,
+        backgroundColor: COLORS.creamDeep,
+        borderColor: COLORS.gold,
+        borderWidth: "1px",
         contents: [
           {
             type: "text",
+            text: "BAAN SABAI • SPA & WELLNESS",
+            color: COLORS.oliveDark,
+            weight: "bold",
+            size: "xxs",
+          },
+          {
+            type: "text",
             text: "เลือกพนักงานนวด",
-            color: COLORS.green,
+            color: COLORS.olive,
             weight: "bold",
             size: "xl",
+            margin: "sm",
           },
           {
             type: "text",
@@ -180,10 +204,16 @@ export function therapistList(therapists: Therapist[]): LineMessage {
       body: {
         type: "box",
         layout: "vertical",
-        spacing: "lg",
+        backgroundColor: COLORS.cream,
+        spacing: "md",
         contents: therapists.map((therapist) => ({
           type: "box",
           layout: "vertical",
+          backgroundColor: COLORS.cream,
+          borderColor: COLORS.gold,
+          borderWidth: "1px",
+          cornerRadius: "14px",
+          paddingAll: "14px",
           spacing: "sm",
           contents: [
             {
@@ -202,7 +232,8 @@ export function therapistList(therapists: Therapist[]): LineMessage {
             },
             {
               type: "button",
-              style: "secondary",
+              style: "primary",
+              color: COLORS.olive,
               height: "sm",
               action: postback(
                 `เลือก ${therapist.nickname ?? therapist.name}`,
@@ -231,13 +262,15 @@ export function datePicker(dates: DateOption[]): LineMessage {
           layout: "vertical",
           justifyContent: "center",
           alignItems: "center",
-          backgroundColor: COLORS.pale,
+          backgroundColor: COLORS.creamDeep,
+          borderColor: COLORS.gold,
+          borderWidth: "1px",
           paddingAll: "18px",
           contents: [
             {
               type: "text",
               text: date.label,
-              color: COLORS.green,
+              color: COLORS.olive,
               weight: "bold",
               align: "center",
               wrap: true,
@@ -247,11 +280,13 @@ export function datePicker(dates: DateOption[]): LineMessage {
         footer: {
           type: "box",
           layout: "vertical",
+          backgroundColor: COLORS.cream,
+          paddingTop: "8px",
           contents: [
             {
               type: "button",
               style: "primary",
-              color: COLORS.green,
+              color: COLORS.olive,
               height: "sm",
               action: postback("เลือกวันนี้", "select_date", {
                 date: date.date,
@@ -279,24 +314,34 @@ export function timeGrid(slots: AvailableSlot[]): LineMessage {
       header: {
         type: "box",
         layout: "vertical",
-        backgroundColor: COLORS.green,
+        backgroundColor: COLORS.olive,
         contents: [
           {
             type: "text",
+            text: "BAAN SABAI • SPA & WELLNESS",
+            color: COLORS.cream,
+            weight: "bold",
+            size: "xxs",
+          },
+          {
+            type: "text",
             text: "เวลาว่างที่เลือกได้",
-            color: "#FFFFFF",
+            color: COLORS.cream,
             weight: "bold",
             size: "xl",
+            margin: "sm",
           },
         ],
       },
       body: {
         type: "box",
         layout: "vertical",
+        backgroundColor: COLORS.cream,
         spacing: "sm",
         contents: visibleSlots.map((slot) => ({
           type: "button",
           style: "secondary",
+          color: COLORS.creamDeep,
           height: "sm",
           action: postback(slot.label, "select_time", {
             start_at: slot.start_at,
@@ -306,6 +351,9 @@ export function timeGrid(slots: AvailableSlot[]): LineMessage {
       footer: {
         type: "box",
         layout: "vertical",
+        backgroundColor: COLORS.cream,
+        borderColor: COLORS.gold,
+        borderWidth: "1px",
         contents: [
           {
             type: "text",
@@ -350,25 +398,34 @@ export function paymentSummary(input: {
         size: "full",
         aspectRatio: "1:1",
         aspectMode: "fit",
-        backgroundColor: "#FFFFFF",
+        backgroundColor: COLORS.cream,
       },
       header: {
         type: "box",
         layout: "vertical",
-        backgroundColor: COLORS.green,
+        backgroundColor: COLORS.olive,
         contents: [
           {
             type: "text",
+            text: "BAAN SABAI • SPA & WELLNESS",
+            color: COLORS.cream,
+            weight: "bold",
+            size: "xxs",
+          },
+          {
+            type: "text",
             text: "สรุปการจองและมัดจำ",
-            color: "#FFFFFF",
+            color: COLORS.cream,
             weight: "bold",
             size: "xl",
+            margin: "sm",
           },
         ],
       },
       body: {
         type: "box",
         layout: "vertical",
+        backgroundColor: COLORS.cream,
         spacing: "md",
         contents: [
           {
@@ -391,7 +448,7 @@ export function paymentSummary(input: {
             color: COLORS.muted,
             size: "sm",
           },
-          { type: "separator", margin: "md" },
+          { type: "separator", color: COLORS.goldPale, margin: "md" },
           {
             type: "box",
             layout: "horizontal",
@@ -414,13 +471,13 @@ export function paymentSummary(input: {
               {
                 type: "text",
                 text: "มัดจำ 30%",
-                color: COLORS.green,
+                color: COLORS.olive,
                 weight: "bold",
               },
               {
                 type: "text",
                 text: price(input.booking.deposit_amount),
-                color: COLORS.gold,
+                color: COLORS.oliveDark,
                 weight: "bold",
                 align: "end",
               },
@@ -439,12 +496,15 @@ export function paymentSummary(input: {
       footer: {
         type: "box",
         layout: "vertical",
+        backgroundColor: COLORS.cream,
+        borderColor: COLORS.gold,
+        borderWidth: "1px",
         spacing: "sm",
         contents: [
           {
             type: "button",
             style: "primary",
-            color: COLORS.green,
+            color: COLORS.olive,
             action: postback("ชำระแล้ว (Demo)", "confirm_payment", {
               booking_id: input.booking.id,
             }),
@@ -452,6 +512,7 @@ export function paymentSummary(input: {
           {
             type: "button",
             style: "secondary",
+            color: COLORS.creamDeep,
             height: "sm",
             action: postback("ยกเลิกคิวนี้", "cancel_booking_confirm", {
               booking_id: input.booking.id,
@@ -477,21 +538,30 @@ export function bookingConfirmation(input: {
       header: {
         type: "box",
         layout: "vertical",
-        backgroundColor: COLORS.green,
+        backgroundColor: COLORS.olive,
         paddingAll: "22px",
         contents: [
           {
             type: "text",
-            text: "ยืนยันการจองแล้ว (Demo)",
-            color: "#FFFFFF",
+            text: "BAAN SABAI • SPA & WELLNESS",
+            color: COLORS.cream,
             weight: "bold",
-            size: "xl",
+            size: "xxs",
             align: "center",
           },
           {
             type: "text",
+            text: "ยืนยันการจองแล้ว (Demo)",
+            color: COLORS.cream,
+            weight: "bold",
+            size: "xl",
+            align: "center",
+            margin: "sm",
+          },
+          {
+            type: "text",
             text: `รหัส ${input.booking.booking_code}`,
-            color: "#DCE9DB",
+            color: COLORS.cream,
             size: "sm",
             align: "center",
             margin: "sm",
@@ -501,6 +571,7 @@ export function bookingConfirmation(input: {
       body: {
         type: "box",
         layout: "vertical",
+        backgroundColor: COLORS.cream,
         spacing: "md",
         contents: [
           {
@@ -523,11 +594,11 @@ export function bookingConfirmation(input: {
             color: COLORS.muted,
             size: "sm",
           },
-          { type: "separator", margin: "md" },
+          { type: "separator", color: COLORS.goldPale, margin: "md" },
           {
             type: "text",
             text: `บันทึกมัดจำ Demo ${price(input.booking.paid_amount)} เหลือชำระที่ร้าน ${price(input.booking.total_amount - input.booking.paid_amount)}`,
-            color: COLORS.green,
+            color: COLORS.olive,
             weight: "bold",
             size: "sm",
             wrap: true,
@@ -538,10 +609,14 @@ export function bookingConfirmation(input: {
       footer: {
         type: "box",
         layout: "vertical",
+        backgroundColor: COLORS.cream,
+        borderColor: COLORS.gold,
+        borderWidth: "1px",
         contents: [
           {
             type: "button",
             style: "secondary",
+            color: COLORS.creamDeep,
             height: "sm",
             action: postback("ยกเลิกคิวนี้", "cancel_booking_confirm", {
               booking_id: input.booking.id,
@@ -562,9 +637,27 @@ export function cancelConfirmation(input: {
     altText: "ยืนยันการยกเลิกคิว",
     contents: {
       type: "bubble",
+      header: {
+        type: "box",
+        layout: "vertical",
+        backgroundColor: COLORS.creamDeep,
+        borderColor: COLORS.gold,
+        borderWidth: "1px",
+        contents: [
+          {
+            type: "text",
+            text: "BAAN SABAI • SPA & WELLNESS",
+            color: COLORS.oliveDark,
+            weight: "bold",
+            size: "xxs",
+            align: "center",
+          },
+        ],
+      },
       body: {
         type: "box",
         layout: "vertical",
+        backgroundColor: COLORS.cream,
         spacing: "md",
         contents: [
           {
@@ -592,6 +685,9 @@ export function cancelConfirmation(input: {
       footer: {
         type: "box",
         layout: "vertical",
+        backgroundColor: COLORS.cream,
+        borderColor: COLORS.gold,
+        borderWidth: "1px",
         spacing: "sm",
         contents: [
           {
@@ -605,6 +701,7 @@ export function cancelConfirmation(input: {
           {
             type: "button",
             style: "secondary",
+            color: COLORS.creamDeep,
             height: "sm",
             action: postback("ไม่ยกเลิก", "cancel_booking_abort", {}),
           },

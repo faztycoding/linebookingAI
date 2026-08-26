@@ -178,6 +178,14 @@ Scoped to the low-risk options approved by the user, deferring vector-search RAG
 - Deployed commit `5b874ce` to production and applied the updated protected seed successfully (5 services, 3 therapists, 7 shop-info entries, 5 seeded bookings). Production checks: Admin API returned 8 bookings for 26 Aug and 2 for 27 Aug while preserving 1 escalation, malformed date returned HTTP 400, unauthenticated Admin API returned HTTP 401, and Admin HTML contained the date picker and escalation section
 - Confirmed production `shop_info` now contains the explicit fictional address, Demo hours and non-working Demo phone warning
 
+## Unified LINE Flex Theme (26 Aug 2026, approved scope change)
+
+- Restyled every customer-facing Flex card to match the branded Rich Menu artwork using one cream/gold/olive palette: service carousel, therapist selector, date cards, time grid, payment/QR summary, booking confirmation and cancellation confirmation
+- Added consistent `BAAN SABAI • SPA & WELLNESS` branding on full-size card headers, cream body/footer surfaces, gold borders and separators, olive primary actions, and deep-cream secondary controls while preserving the existing postback payloads and booking behavior
+- Added a regression check that constructs all seven card families and rejects the legacy green/pale palette — 27/27 checks passing
+- Submitted both generated message batches (5 messages + 2 messages) to the official LINE Messaging API reply-message validation endpoint; both returned HTTP 200 with an empty validation-error object
+- Adversarial accessibility review found no functional/schema regressions. Replaced the stray off-white, changed small olive-header branding to high-contrast cream, changed gold price text to dark olive, and retained gold as the stronger border/separator accent
+
 ## Remaining Acceptance Checks
 
 1. On a physical phone, confirm “คิวของฉัน” still shows an existing confirmed booking after tapping “จองบริการเพิ่ม”
