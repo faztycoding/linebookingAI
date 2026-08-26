@@ -312,6 +312,78 @@ check("booking-flow handles all four rich-menu postback actions", () => {
   assert.match(source, /action === "menu_about_shop"/);
 });
 
+check("my-booking queries active LINE bookings instead of conversation booking_id", () => {
+  const dbSource = readFileSync(
+    path.join(__dirname, "..", "src", "lib", "db.ts"),
+    "utf8",
+  );
+  const flowSource = readFileSync(
+    path.join(__dirname, "..", "src", "lib", "booking-flow.ts"),
+    "utf8",
+  );
+  assert.match(dbSource, /getActiveBookingsForLineUser/);
+  assert.match(dbSource, /\.eq\("line_user_id", lineUserId\)/);
+  assert.match(
+    dbSource,
+    /\.in\("status", \["hold", "pending_payment", "confirmed"\]\)/,
+  );
+  assert.match(
+    flowSource,
+    /action === "menu_my_booking"[\s\S]*?getActiveBookingsForLineUser\(lineUserId\)/,
+  );
+});
+
+check("admin API returns escalations and supports resolving them", () => {
+  const source = readFileSync(
+    path.join(
+      __dirname,
+      "..",
+      "src",
+      "app",
+      "api",
+      "admin",
+      "bookings",
+      "route.ts",
+    ),
+    "utf8",
+  );
+  assert.match(source, /getEscalatedConversations\(\)/);
+  assert.match(source, /action === "resolve_escalation"/);
+  assert.match(source, /resolveConversationEscalation\(lineUserId\)/);
+  assert.match(source, /UUID_PATTERN\.test\(body\.bookingId\)/);
+  assert.match(source, /รูปแบบวันที่ไม่ถูกต้อง/);
+});
+
+check("resolving an escalation uses optimistic concurrency", () => {
+  const source = readFileSync(
+    path.join(__dirname, "..", "src", "lib", "db.ts"),
+    "utf8",
+  );
+  assert.match(
+    source,
+    /resolveConversationEscalation[\s\S]*?\.eq\("updated_at", conversation\.updated_at\)/,
+  );
+  assert.match(source, /throw new ConversationConflictError\(\)/);
+});
+
+check("admin dashboard queries the selected date and renders escalations", () => {
+  const source = readFileSync(
+    path.join(
+      __dirname,
+      "..",
+      "src",
+      "app",
+      "admin",
+      "admin-dashboard.tsx",
+    ),
+    "utf8",
+  );
+  assert.match(source, /new URLSearchParams\(\{ date: selectedDate \}\)/);
+  assert.match(source, /type="date"/);
+  assert.match(source, /resolveEscalation\(escalation.line_user_id\)/);
+  assert.match(source, /window\.setInterval\(\(\) => void refresh\(\), 10_000\)/);
+});
+
 // --- report ---
 
 const failed = results.filter((result) => !result.ok);

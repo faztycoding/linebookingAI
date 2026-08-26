@@ -2,9 +2,12 @@ import Link from "next/link";
 
 import { AdminDashboard } from "@/app/admin/admin-dashboard";
 import {
+  getBangkokDate,
   getBookingsForDate,
+  getEscalatedConversations,
   releaseExpiredHolds,
   type BookingView,
+  type EscalationView,
 } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
@@ -12,10 +15,15 @@ export const dynamic = "force-dynamic";
 export default async function AdminPage() {
   let initialError: string | null = null;
   let bookings: BookingView[] = [];
+  let escalations: EscalationView[] = [];
+  const initialDate = getBangkokDate();
 
   try {
     await releaseExpiredHolds();
-    bookings = await getBookingsForDate();
+    [bookings, escalations] = await Promise.all([
+      getBookingsForDate(initialDate),
+      getEscalatedConversations(),
+    ]);
   } catch (error) {
     console.error("Admin initial data failed", error);
     initialError = "ยังไม่ได้เชื่อม Supabase จึงแสดงหน้าตา Demo โดยไม่มีข้อมูลคิว";
@@ -45,7 +53,12 @@ export default async function AdminPage() {
           </Link>
         </div>
       </header>
-      <AdminDashboard initialBookings={bookings} initialError={initialError} />
+      <AdminDashboard
+        initialBookings={bookings}
+        initialEscalations={escalations}
+        initialDate={initialDate}
+        initialError={initialError}
+      />
     </main>
   );
 }

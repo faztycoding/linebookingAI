@@ -73,6 +73,14 @@ export type Conversation = {
   updated_at: string;
 };
 
+export type EscalationView = {
+  line_user_id: string;
+  customer_name: string | null;
+  reason: string;
+  ai_paused_until: string | null;
+  updated_at: string;
+};
+
 export class BookingConflictError extends Error {
   constructor() {
     super("Booking time overlaps an existing booking");
@@ -101,7 +109,21 @@ export class InvalidBookingTransitionError extends Error {
   }
 }
 
+export class ConversationConflictError extends Error {
+  constructor() {
+    super("Conversation was updated concurrently");
+    this.name = "ConversationConflictError";
+  }
+}
+
 let adminClient: SupabaseClient | undefined;
+
+function requireLineUserId(value: string): string {
+  if (!value || value.length > 100) {
+    throw new Error("LINE user ID is invalid");
+  }
+  return value;
+}
 
 export function getSupabaseAdmin(): SupabaseClient {
   if (adminClient) {
@@ -371,6 +393,27 @@ export async function getBookingById(id: string): Promise<Booking | null> {
   }
 
   return data ? normalizeBooking(data) : null;
+}
+
+export async function getActiveBookingsForLineUser(
+  lineUserId: string,
+): Promise<Booking[]> {
+  const ownerId = requireLineUserId(lineUserId);
+  await releaseExpiredHolds();
+  const { data, error } = await getSupabaseAdmin()
+    .from("bookings")
+    .select("*")
+    .eq("line_user_id", ownerId)
+    .eq("source", "line")
+    .in("status", ["hold", "pending_payment", "confirmed"])
+    .order("created_at", { ascending: false })
+    .limit(5);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return (data ?? []).map((row) => normalizeBooking(row));
 }
 
 export function getBangkokDate(value = new Date()): string {
@@ -713,6 +756,90 @@ export async function markConversationEscalated(
 
   if (error) {
     throw new Error(error.message);
+  }
+}
+
+export async function getEscalatedConversations(): Promise<EscalationView[]> {
+  const { data, error } = await getSupabaseAdmin()
+    .from("conversations")
+    .select("line_user_id,state,ai_paused_until,updated_at")
+    .contains("state", { escalated: true })
+    .order("updated_at", { ascending: false });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  const rows = data ?? [];
+  const lineUserIds = rows.map((row) => String(row.line_user_id));
+  const customerByLineUserId = new Map<string, string>();
+
+  if (lineUserIds.length) {
+    const { data: bookings, error: bookingError } = await getSupabaseAdmin()
+      .from("bookings")
+      .select("line_user_id,customer_name,created_at")
+      .in("line_user_id", lineUserIds)
+      .order("created_at", { ascending: false });
+
+    if (bookingError) {
+      throw new Error(bookingError.message);
+    }
+
+    for (const booking of bookings ?? []) {
+      const id = booking.line_user_id ? String(booking.line_user_id) : null;
+      if (id && booking.customer_name && !customerByLineUserId.has(id)) {
+        customerByLineUserId.set(id, String(booking.customer_name));
+      }
+    }
+  }
+
+  return rows.map((row) => {
+    const state =
+      row.state && typeof row.state === "object"
+        ? (row.state as Record<string, unknown>)
+        : {};
+    const lineUserId = String(row.line_user_id);
+    return {
+      line_user_id: lineUserId,
+      customer_name: customerByLineUserId.get(lineUserId) ?? null,
+      reason:
+        typeof state.escalation_reason === "string"
+          ? state.escalation_reason
+          : "ลูกค้าต้องการให้แอดมินดูแล",
+      ai_paused_until: row.ai_paused_until
+        ? String(row.ai_paused_until)
+        : null,
+      updated_at: String(row.updated_at),
+    };
+  });
+}
+
+export async function resolveConversationEscalation(
+  lineUserId: string,
+): Promise<void> {
+  const ownerId = requireLineUserId(lineUserId);
+  const conversation = await getConversation(ownerId);
+  const state = { ...conversation.state };
+  delete state.escalated;
+  delete state.escalation_reason;
+
+  const { data, error } = await getSupabaseAdmin()
+    .from("conversations")
+    .update({
+      state,
+      ai_paused_until: null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("line_user_id", ownerId)
+    .eq("updated_at", conversation.updated_at)
+    .select("line_user_id")
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+  if (!data) {
+    throw new ConversationConflictError();
   }
 }
 

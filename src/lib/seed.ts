@@ -86,24 +86,28 @@ const therapists = [
 ];
 
 const shopInfo = [
-  { key: "hours", value: "เปิดทุกวัน เวลา 10:00–20:00 น." },
+  { key: "hours", value: "เปิดทุกวัน เวลา 10:00–20:00 น. (ข้อมูลสาธิต)" },
   {
     key: "address",
-    value: "Baan Sabai Spa (ข้อมูลสำหรับ Demo) ใจกลางกรุงเทพฯ",
+    value:
+      "Baan Sabai Spa & Wellness — สาขาสาธิต ถนนสุขุมวิท เขตวัฒนา กรุงเทพฯ (ไม่มีหน้าร้านจริง)",
   },
-  { key: "parking", value: "มีที่จอดรถหน้าร้าน 4 คัน" },
+  {
+    key: "parking",
+    value: "มีที่จอดรถสำหรับลูกค้า 4 คัน (ข้อมูลสาธิต)",
+  },
   {
     key: "payment_methods",
-    value: "รับเงินสด โอนผ่านธนาคาร และ PromptPay",
+    value: "รองรับเงินสด โอนผ่านธนาคาร และ PromptPay (ระบบชำระเงินสาธิต)",
   },
   {
     key: "cancellation_policy",
     value: "กรุณาแจ้งเปลี่ยนแปลงล่วงหน้าอย่างน้อย 3 ชั่วโมง",
   },
-  { key: "phone", value: "02-000-0000 (เบอร์สำหรับ Demo)" },
+  { key: "phone", value: "02-123-4567 (เบอร์สาธิต ไม่เปิดรับสายจริง)" },
   {
     key: "promotions",
-    value: "แพ็กเกจ Baan Sabai Signature ราคา 1,500 บาท",
+    value: "แพ็กเกจ Baan Sabai Signature ราคา 1,500 บาท (ข้อมูลสาธิต)",
   },
 ];
 

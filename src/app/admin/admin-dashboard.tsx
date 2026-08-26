@@ -3,7 +3,11 @@
 import { createClient } from "@supabase/supabase-js";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import type { BookingStatus, BookingView } from "@/lib/db";
+import type {
+  BookingStatus,
+  BookingView,
+  EscalationView,
+} from "@/lib/db";
 
 const statusText: Record<BookingStatus, string> = {
   hold: "รอมัดจำ",
@@ -52,14 +56,38 @@ function money(value: number): string {
   }).format(value);
 }
 
+function dateLabel(date: string): string {
+  return new Intl.DateTimeFormat("th-TH", {
+    timeZone: "Asia/Bangkok",
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  }).format(new Date(`${date}T12:00:00+07:00`));
+}
+
+function escalationTime(value: string): string {
+  return new Intl.DateTimeFormat("th-TH", {
+    timeZone: "Asia/Bangkok",
+    dateStyle: "short",
+    timeStyle: "short",
+  }).format(new Date(value));
+}
+
 export function AdminDashboard({
   initialBookings,
+  initialEscalations,
+  initialDate,
   initialError,
 }: {
   initialBookings: BookingView[];
+  initialEscalations: EscalationView[];
+  initialDate: string;
   initialError: string | null;
 }) {
   const [bookings, setBookings] = useState(initialBookings);
+  const [escalations, setEscalations] = useState(initialEscalations);
+  const [selectedDate, setSelectedDate] = useState(initialDate);
   const [error, setError] = useState(initialError);
   const [connection, setConnection] = useState<"connecting" | "live" | "offline">(
     "connecting",
@@ -68,23 +96,35 @@ export function AdminDashboard({
 
   const refresh = useCallback(async () => {
     try {
-      const response = await fetch("/api/admin/bookings", { cache: "no-store" });
+      const params = new URLSearchParams({ date: selectedDate });
+      const response = await fetch(`/api/admin/bookings?${params}`, {
+        cache: "no-store",
+      });
       const body: unknown = await response.json();
       if (
         !response.ok ||
         !body ||
         typeof body !== "object" ||
         !("bookings" in body) ||
-        !Array.isArray(body.bookings)
+        !Array.isArray(body.bookings) ||
+        !("escalations" in body) ||
+        !Array.isArray(body.escalations)
       ) {
-        throw new Error("โหลดคิวไม่สำเร็จ");
+        throw new Error("โหลดข้อมูลไม่สำเร็จ");
       }
       setBookings(body.bookings as BookingView[]);
+      setEscalations(body.escalations as EscalationView[]);
       setError(null);
     } catch {
-      setError("โหลดคิวไม่สำเร็จ กรุณาตรวจสอบการเชื่อมต่อ");
+      setError("โหลดข้อมูลไม่สำเร็จ กรุณาตรวจสอบการเชื่อมต่อ");
     }
-  }, []);
+  }, [selectedDate]);
+
+  useEffect(() => {
+    void refresh();
+    const interval = window.setInterval(() => void refresh(), 10_000);
+    return () => window.clearInterval(interval);
+  }, [refresh]);
 
   useEffect(() => {
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -161,6 +201,34 @@ export function AdminDashboard({
     }
   }
 
+  async function resolveEscalation(lineUserId: string) {
+    const busyKey = `${lineUserId}:resolve_escalation`;
+    setBusy(busyKey);
+    setError(null);
+    try {
+      const response = await fetch("/api/admin/bookings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ lineUserId, action: "resolve_escalation" }),
+      });
+      const body: unknown = await response.json();
+      if (!response.ok) {
+        const message =
+          body && typeof body === "object" && "message" in body
+            ? String(body.message)
+            : "รับเรื่องไม่สำเร็จ";
+        throw new Error(message);
+      }
+      await refresh();
+    } catch (actionError) {
+      setError(
+        actionError instanceof Error ? actionError.message : "รับเรื่องไม่สำเร็จ",
+      );
+    } finally {
+      setBusy(null);
+    }
+  }
+
   const connectionLabel =
     connection === "live"
       ? "Realtime พร้อมใช้งาน"
@@ -170,25 +238,99 @@ export function AdminDashboard({
 
   return (
     <section className="mx-auto max-w-[1500px] py-8">
-      <div className="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+      <div className="mb-8 flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
         <div>
           <p className="text-sm font-bold uppercase tracking-[0.18em] text-[var(--spa-gold)]">
-            TODAY&apos;S OPERATIONS
+            BOOKING OPERATIONS
           </p>
           <h1 className="mt-2 text-4xl font-semibold tracking-tight sm:text-5xl">
-            ตารางคิววันนี้
+            ตารางคิว
           </h1>
-          <p className="mt-2 text-[var(--spa-leaf)]">
-            คิวจาก LINE จะปรากฏบนหน้านี้โดยอัตโนมัติ
-          </p>
+          <p className="mt-2 text-[var(--spa-leaf)]">{dateLabel(selectedDate)}</p>
         </div>
-        <div className="flex items-center gap-3 rounded-full border border-[var(--spa-line)] bg-white/70 px-4 py-2 text-sm font-semibold">
-          <span
-            className={`size-2.5 rounded-full ${connection === "live" ? "bg-emerald-500 shadow-[0_0_0_5px_rgba(16,185,129,.12)]" : "bg-amber-400"}`}
-          />
-          {connectionLabel}
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <div className="flex items-center gap-2 rounded-2xl border border-[var(--spa-line)] bg-white/70 p-2">
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={(event) => {
+                if (event.target.value) {
+                  setSelectedDate(event.target.value);
+                }
+              }}
+              className="rounded-xl bg-white px-3 py-2 text-sm font-semibold outline-none"
+              aria-label="เลือกวันที่แสดงคิว"
+            />
+            <button
+              type="button"
+              onClick={() => setSelectedDate(initialDate)}
+              className="rounded-xl bg-[var(--spa-green)] px-4 py-2 text-sm font-bold text-white"
+            >
+              วันนี้
+            </button>
+          </div>
+          <div className="flex items-center gap-3 rounded-full border border-[var(--spa-line)] bg-white/70 px-4 py-2 text-sm font-semibold">
+            <span
+              className={`size-2.5 rounded-full ${connection === "live" ? "bg-emerald-500 shadow-[0_0_0_5px_rgba(16,185,129,.12)]" : "bg-amber-400"}`}
+            />
+            {connectionLabel}
+          </div>
         </div>
       </div>
+
+      {escalations.length ? (
+        <div className="mb-7 rounded-[2rem] border border-amber-300 bg-amber-50/90 p-5 sm:p-7">
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-bold uppercase tracking-[0.15em] text-amber-700">
+                ต้องการให้แอดมินดูแล
+              </p>
+              <h2 className="mt-1 text-2xl font-semibold">
+                ลูกค้ารอการตอบกลับ {escalations.length} ราย
+              </h2>
+            </div>
+            <span className="rounded-full bg-amber-200 px-4 py-2 text-sm font-bold text-amber-900">
+              อัปเดตทุก 10 วินาที
+            </span>
+          </div>
+          <div className="grid gap-3 lg:grid-cols-2">
+            {escalations.map((escalation) => {
+              const busyKey = `${escalation.line_user_id}:resolve_escalation`;
+              return (
+                <div
+                  key={escalation.line_user_id}
+                  className="rounded-2xl border border-amber-200 bg-white p-4"
+                >
+                  <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
+                    <div>
+                      <p className="font-bold">
+                        {escalation.customer_name || "ลูกค้า LINE"}
+                      </p>
+                      <p className="mt-1 text-sm text-amber-900">
+                        {escalation.reason}
+                      </p>
+                      <p className="mt-1 text-xs text-[var(--spa-leaf)]">
+                        {escalationTime(escalation.updated_at)} · LINE …
+                        {escalation.line_user_id.slice(-6)}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      disabled={busy !== null}
+                      onClick={() =>
+                        void resolveEscalation(escalation.line_user_id)
+                      }
+                      className="shrink-0 rounded-full bg-[var(--spa-green)] px-4 py-2 text-sm font-bold text-white disabled:opacity-40"
+                    >
+                      {busy === busyKey ? "กำลังรับเรื่อง" : "รับเรื่องแล้ว"}
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
 
       <div className="mb-7 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {[
@@ -302,7 +444,7 @@ export function AdminDashboard({
               {!bookings.length ? (
                 <tr>
                   <td colSpan={7} className="px-6 py-20 text-center text-[var(--spa-leaf)]">
-                    ยังไม่มีคิววันนี้ เมื่อจองผ่าน LINE คิวจะเด้งขึ้นที่นี่
+                    ยังไม่มีคิวในวันที่เลือก เมื่อจองผ่าน LINE คิวจะเด้งขึ้นที่นี่
                   </td>
                 </tr>
               ) : null}

@@ -17,6 +17,9 @@ Timezone: `Asia/Bangkok`
 4. Admin เห็นคิวใหม่แบบ real-time
 5. POS-lite เปิดบิล walk-in ปิดบิลจาก booking และแสดงยอดรวมวันนี้
 6. ลูกค้ายกเลิกคิวของตัวเองผ่าน LINE ได้ โดยต้องมีขั้นตอนยืนยันซ้ำก่อนยกเลิกจริง และตรวจสอบว่าเป็นเจ้าของคิวเสมอ
+7. Rich Menu ปุ่ม “คิวของฉัน” ต้องค้นหาคิว active จาก `line_user_id` ในฐานข้อมูล ไม่พึ่ง `conversation.state.booking_id` และแสดงได้สูงสุด 5 คิว
+8. เมื่อ AI ส่งต่อให้แอดมิน รายการต้องปรากฏบน Admin Dashboard และแอดมินต้องกดรับเรื่องเพื่อเปิด AI กลับได้
+9. Admin ต้องเลือกดูคิวตามวันที่ได้ โดยใช้ timezone `Asia/Bangkok`
 
 ### Out of scope
 
@@ -51,6 +54,7 @@ Feature นอก scope ต้องบันทึกใน `PHASE2.md` แล�
 - LINE webhook ต้องตรวจ `x-line-signature` ด้วย HMAC-SHA256
 - ทุก LINE reply ใช้ `replyToken`; ห้ามใช้ push message
 - Text events ผ่าน AI orchestrator; postback events ใช้ deterministic handlers และไม่ผ่าน AI
+- Admin อ่าน escalation ผ่าน API ที่ใช้ service-role และ polling; ห้ามเปิด anon read policy ให้ `conversations` เพราะมีประวัติสนทนาและ LINE user ID
 - ใช้ `webhookEventId` deduplicate webhook events
 - การกันคิวชนพึ่ง Postgres exclusion constraint และ catch error `23P01`; ห้ามใช้ check-then-insert ใน JavaScript
 - Booking ทุกช่วงเวลารวม buffer 15 นาทีท้ายคิว

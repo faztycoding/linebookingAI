@@ -1,10 +1,10 @@
 # Project Progress
 
-Last updated: 2026-08-25
+Last updated: 2026-08-26
 
 ## Current Milestone
 
-Local demo implementation complete; external service configuration and real-device acceptance gates pending
+Production demo deployed; customer-readiness polish and real-device acceptance verification in progress
 
 ## Completed
 
@@ -29,7 +29,7 @@ Local demo implementation complete; external service configuration and real-devi
 - Revalidated the selected slot immediately before hold creation
 - Added LINE chat loading and profile lookup with a safe customer-name fallback
 - Added webhook event claiming/deduplication and release-on-unhandled-failure behavior
-- Updated the webhook to validate raw signatures, return HTTP 200 first with Next.js `after()`, then process events sequentially
+- Updated the webhook to validate raw signatures and process events sequentially before returning HTTP 200, ensuring LINE replies complete before the serverless request ends
 - Added follow-event welcome flow and Thai fallback messages
 - Limited LINE replies to five messages and postback data to 300 characters
 
@@ -166,19 +166,27 @@ Scoped to the low-risk options approved by the user, deferring vector-search RAG
 - `POST /api/rich-menu` (new `RICH_MENU_SECRET`, same bearer-token pattern as `/api/seed`) deletes any existing rich menus, creates the new one, uploads the image, and sets it as the default for all users — this is a one-time/idempotent admin provisioning action, not called by any runtime code path
 - Regression checks cover five non-overlapping tap areas within bounds, their exact deterministic postback mapping, JPEG dimensions/format/under-1-MB upload size, and all four unique `menu_*` postback handlers in `booking-flow.ts` — 22/22 checks passing
 
-1. Create Supabase and run `supabase/schema.sql`
-2. Configure Supabase values and call the protected seed route
-3. Configure Anthropic API key and a current Claude Haiku model ID
-4. Configure real LINE channel credentials and OA URL
-5. Deploy to Vercel and set the LINE webhook URL
-6. Verify DB-driven price changes in a real LINE conversation
-7. Complete service → therapist → date → time → QR → Demo confirmation on a physical phone
-8. Confirm expired payment buttons cannot confirm a booking
-9. Send duplicate webhook event IDs and confirm only one reply
-10. Attempt the same hold twice and confirm the second response is Thai, not HTTP 500
-11. Confirm the new booking appears on Admin within two seconds
-12. Close the LINE booking in POS and verify deposit subtraction and daily totals
-13. Create an overlapping Walk-in and confirm the API returns the Thai conflict response
+## Customer-Readiness Polish (26 Aug 2026, approved scope change)
+
+- Fixed “คิวของฉัน” to query up to five active LINE bookings (`hold`, `pending_payment`, `confirmed`) by `line_user_id` directly from the database after lazy hold expiry. It no longer relies on the temporary `conversation.state.booking_id`, which is intentionally cleared when starting another booking
+- Added secure escalation visibility to Admin without exposing `conversations` through the anon key: the protected Admin API returns only line user ID, latest known customer name, reason and timestamps; the dashboard polls every 10 seconds and provides a “รับเรื่องแล้ว” action that clears the escalation and resumes AI
+- Added an Admin date input and Bangkok date label. Booking Realtime refresh and escalation polling preserve the currently selected date, while a “วันนี้” button returns to the initial Bangkok date
+- Replaced incomplete shop placeholders with polished but explicitly fictional Demo details (including no-real-store and no-real-phone warnings), and added `LINE_OA_SETUP.md` with profile copy, response settings, verification limitations and a pre-customer checklist
+- Updated the LINE follow greeting to state clearly that the account is a Demo and users must not transfer real money
+- Added 4 regression checks covering database-backed “คิวของฉัน”, escalation API/resolve wiring with optimistic concurrency, selected-date validation/queries and escalation polling — 26/26 checks passing
+- Local authenticated smoke checks: selected-date Admin API returned 3 bookings and 1 escalation, malformed date returned HTTP 400 with a Thai error, and server-rendered Admin HTML contained the date control and escalation alert
+
+## Remaining Acceptance Checks
+
+1. On a physical phone, confirm “คิวของฉัน” still shows an existing confirmed booking after tapping “จองบริการเพิ่ม”
+2. Tap “ติดต่อแอดมิน”, confirm the alert appears on Admin within 10 seconds, then tap “รับเรื่องแล้ว” and confirm the alert clears
+3. Book a future date and confirm the Admin date picker shows that booking on the selected date
+4. Apply the profile name, description, image/cover and response settings from `LINE_OA_SETUP.md` manually in LINE Official Account Manager
+5. Confirm expired payment buttons cannot confirm a booking
+6. Send duplicate webhook event IDs and confirm only one reply
+7. Attempt the same hold twice and confirm the second response is Thai, not HTTP 500
+8. Close a LINE booking in POS and verify deposit subtraction and daily totals
+9. Create an overlapping Walk-in and confirm the API returns the Thai conflict response
 
 ## Files Touched This Milestone
 

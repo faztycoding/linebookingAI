@@ -7,6 +7,7 @@ import {
   cancelOwnBooking,
   claimWebhookEvent,
   confirmBookingPayment,
+  getActiveBookingsForLineUser,
   getBookingById,
   getConversation,
   getServiceById,
@@ -534,11 +535,9 @@ async function handlePostback(
   }
 
   if (action === "menu_my_booking") {
-    const bookingId = stateString(conversation.state, "booking_id");
-    const booking = bookingId ? await getBookingById(bookingId) : null;
-    const activeStatuses = new Set(["hold", "pending_payment", "confirmed"]);
+    const bookings = await getActiveBookingsForLineUser(lineUserId);
 
-    if (!booking || !activeStatuses.has(booking.status)) {
+    if (!bookings.length) {
       await replyMessage(replyToken, [
         textMessage(
           "ตอนนี้ยังไม่มีคิวที่กำลังใช้งานอยู่ค่ะ เลือกบริการเพื่อเริ่มจองได้เลยค่ะ",
@@ -548,35 +547,33 @@ async function handlePostback(
       return;
     }
 
-    const [service, therapist] = await Promise.all([
-      booking.service_id ? getServiceById(booking.service_id) : null,
-      getTherapistById(booking.therapist_id),
-    ]);
-    const startAt = bookingStart(booking.time_range);
+    const messages = await Promise.all(
+      bookings.map(async (booking): Promise<LineMessage> => {
+        const [service, therapist] = await Promise.all([
+          booking.service_id ? getServiceById(booking.service_id) : null,
+          getTherapistById(booking.therapist_id),
+        ]);
+        const startAt = bookingStart(booking.time_range);
 
-    if (!service || !therapist || !startAt) {
-      await replyMessage(replyToken, [
-        textMessage(
-          `คิวของคุณคือรหัส ${booking.booking_code} ค่ะ กรุณาแจ้งแอดมินหากต้องการรายละเอียดเพิ่มเติม`,
-        ),
-      ]);
-      return;
-    }
+        if (!service || !therapist || !startAt) {
+          return textMessage(
+            `คิวของคุณคือรหัส ${booking.booking_code} ค่ะ กรุณาแจ้งแอดมินหากต้องการรายละเอียดเพิ่มเติม`,
+          );
+        }
 
-    await replyMessage(
-      replyToken,
-      booking.status === "confirmed"
-        ? [bookingConfirmation({ booking, service, therapist, startAt })]
-        : [
-            paymentSummary({
+        return booking.status === "confirmed"
+          ? bookingConfirmation({ booking, service, therapist, startAt })
+          : paymentSummary({
               booking,
               service,
               therapist,
               startAt,
               qrUrl: getPaymentQrUrl(booking.id),
-            }),
-          ],
+            });
+      }),
     );
+
+    await replyMessage(replyToken, messages);
     return;
   }
 
@@ -630,7 +627,7 @@ async function handleClaimedEvent(event: LineWebhookEvent): Promise<void> {
     const carouselMessages = await buildServiceCarouselMessages();
     await replyMessage(replyToken, [
       textMessage(
-        "สวัสดีค่ะ ยินดีต้อนรับสู่ Baan Sabai Spa สอบถามข้อมูลหรือเลือกบริการได้เลยค่ะ",
+        "สวัสดีค่ะ ยินดีต้อนรับสู่ Baan Sabai Spa ระบบนี้เป็นระบบสาธิต กรุณาไม่โอนเงินจริง สอบถามข้อมูลหรือเลือกบริการได้เลยค่ะ",
       ),
       ...carouselMessages,
     ]);
