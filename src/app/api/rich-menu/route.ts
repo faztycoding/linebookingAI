@@ -79,7 +79,7 @@ export async function POST(request: Request): Promise<Response> {
       richMenuId: string;
     };
 
-    const imagePath = join(process.cwd(), "public", "rich-menu.png");
+    const imagePath = join(process.cwd(), "public", "rich-menu.jpg");
     const image = await readFile(imagePath);
     const uploadResponse = await fetch(
       `https://api-data.line.me/v2/bot/richmenu/${richMenuId}/content`,
@@ -87,7 +87,7 @@ export async function POST(request: Request): Promise<Response> {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
-          "Content-Type": "image/png",
+          "Content-Type": "image/jpeg",
         },
         body: new Uint8Array(image),
       },

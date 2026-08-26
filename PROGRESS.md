@@ -156,15 +156,15 @@ Scoped to the low-risk options approved by the user, deferring vector-search RAG
 ## New Feature: LINE Rich Menu (26 Aug 2026, approved scope change)
 
 - Added a persistent LINE Rich Menu (the bottom image menu most LINE OA shops use), requested directly by the client after testing the demo on a real device
-- 2x2 grid, 4 buttons, all wired as deterministic `postback` actions (never free text to the AI, consistent with the existing design principle that postback events bypass the AI orchestrator):
-  - เริ่มจอง / ดูเมนู → same deterministic `buildServiceCarouselMessages()` used by `book_again` and `follow`
+- Branded menu with 5 tap areas (the large top "จองบริการเพิ่ม" CTA plus the 2x2 grid below), all wired as deterministic `postback` actions (never free text to the AI, consistent with the existing design principle that postback events bypass the AI orchestrator):
+  - จองบริการเพิ่ม and เริ่มจอง / ดูเมนู → both use the same deterministic `buildServiceCarouselMessages()` used by `book_again` and `follow`
   - คิวของฉัน → looks up the active booking from `conversation.state.booking_id` and re-renders the matching card (`paymentSummary` for hold/pending_payment, `bookingConfirmation` for confirmed — both already have a cancel button), or offers to start booking if there is no active one
   - ติดต่อแอดมิน → calls the existing `escalate_to_human` tool (pauses the AI for 30 minutes, same as when the AI itself escalates)
   - เกี่ยวกับร้าน → renders `get_shop_info` (address, hours, parking, phone) as plain text
-- `src/lib/rich-menu.ts` renders the 2500x1686 PNG background image with `sharp` from hand-drawn SVG shapes (flower, calendar, chat bubble, pin) rather than emoji glyphs, since emoji rendering depends on whatever fallback font is installed on the machine running `sharp`/librsvg and is not guaranteed to match between local dev and the Vercel build machine
-- `sharp` was promoted from a transitive `overrides`-only pin to a direct dependency since it is now imported directly, not just used implicitly by Next.js image optimization
+- Redesigned from the initial flat green layout using the approved branded artwork (`ChatGPT Image Aug 26, 2026, 03_34_28 PM.png`). `npm run gen:rich-menu` resizes it to LINE's required 2500x1686 dimensions and exports `public/rich-menu.jpg` at 288 KB; JPEG is used because a photo-style PNG was 4.8 MB and exceeded LINE's 1 MB rich-menu upload limit
+- `sharp` remains a dev dependency used only for local image generation and regression metadata checks; the Vercel route reads the pre-generated static JPEG and does not load platform-specific `sharp` binaries at runtime
 - `POST /api/rich-menu` (new `RICH_MENU_SECRET`, same bearer-token pattern as `/api/seed`) deletes any existing rich menus, creates the new one, uploads the image, and sets it as the default for all users — this is a one-time/idempotent admin provisioning action, not called by any runtime code path
-- Added 6 regression checks: full grid coverage with no gaps/overlap, all areas use `postback` (not raw text), the rendered PNG has the exact required LINE dimensions, and all four `menu_*` postback actions are wired in `booking-flow.ts` — 22/22 checks passing
+- Regression checks cover five non-overlapping tap areas within bounds, their exact deterministic postback mapping, JPEG dimensions/format/under-1-MB upload size, and all four unique `menu_*` postback handlers in `booking-flow.ts` — 22/22 checks passing
 
 1. Create Supabase and run `supabase/schema.sql`
 2. Configure Supabase values and call the protected seed route

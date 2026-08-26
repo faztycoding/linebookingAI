@@ -229,31 +229,47 @@ check("booking-flow merges into the existing profile instead of overwriting it",
 
 // --- rich-menu.ts: LINE rich menu image and tap areas ---
 
-check("rich-menu areas cover the full 2x2 grid with no overlap or gaps", () => {
-  assert.equal(RICH_MENU_AREAS.length, 4);
-  const covered = new Set(
-    RICH_MENU_AREAS.map((area) => `${area.bounds.x},${area.bounds.y}`),
-  );
-  assert.equal(covered.size, 4, "each area must start at a unique corner");
-  for (const area of RICH_MENU_AREAS) {
+check("rich-menu has five non-overlapping tap areas inside the image", () => {
+  assert.equal(RICH_MENU_AREAS.length, 5);
+  for (const [index, area] of RICH_MENU_AREAS.entries()) {
+    assert.ok(area.bounds.x >= 0);
+    assert.ok(area.bounds.y >= 0);
     assert.ok(area.bounds.x + area.bounds.width <= RICH_MENU_WIDTH);
     assert.ok(area.bounds.y + area.bounds.height <= RICH_MENU_HEIGHT);
+
+    for (const other of RICH_MENU_AREAS.slice(index + 1)) {
+      const overlaps =
+        area.bounds.x < other.bounds.x + other.bounds.width &&
+        area.bounds.x + area.bounds.width > other.bounds.x &&
+        area.bounds.y < other.bounds.y + other.bounds.height &&
+        area.bounds.y + area.bounds.height > other.bounds.y;
+      assert.equal(overlaps, false);
+    }
   }
 });
 
-check("rich-menu areas only use deterministic postback actions, not free text to the AI", () => {
-  for (const area of RICH_MENU_AREAS) {
+check("rich-menu areas use the five expected deterministic postbacks", () => {
+  const actions = RICH_MENU_AREAS.map((area) => {
     assert.equal(area.action.type, "postback");
-    assert.match(area.action.data, /^action=menu_/);
-  }
+    return area.action.data;
+  });
+  assert.deepEqual(actions, [
+    "action=menu_start_booking",
+    "action=menu_start_booking",
+    "action=menu_my_booking",
+    "action=menu_contact_admin",
+    "action=menu_about_shop",
+  ]);
 });
 
-check("buildRichMenuImage renders a valid PNG at the required LINE dimensions", async () => {
+check("buildRichMenuImage renders an uploadable JPEG at LINE dimensions", async () => {
   const buffer = await buildRichMenuImage();
-  assert.ok(buffer.length > 0);
-  // PNG signature + IHDR width/height are big-endian 32-bit ints at fixed offsets.
-  assert.equal(buffer.readUInt32BE(16), RICH_MENU_WIDTH);
-  assert.equal(buffer.readUInt32BE(20), RICH_MENU_HEIGHT);
+  const { default: sharp } = await import("sharp");
+  const metadata = await sharp(buffer).metadata();
+  assert.equal(metadata.format, "jpeg");
+  assert.equal(metadata.width, RICH_MENU_WIDTH);
+  assert.equal(metadata.height, RICH_MENU_HEIGHT);
+  assert.ok(buffer.length < 1_000_000, "LINE rich menu images must be under 1 MB");
 });
 
 check("booking-flow short-circuits known start-booking phrases before the AI call", () => {
