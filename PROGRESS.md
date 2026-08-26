@@ -175,6 +175,8 @@ Scoped to the low-risk options approved by the user, deferring vector-search RAG
 - Updated the LINE follow greeting to state clearly that the account is a Demo and users must not transfer real money
 - Added 4 regression checks covering database-backed “คิวของฉัน”, escalation API/resolve wiring with optimistic concurrency, selected-date validation/queries and escalation polling — 26/26 checks passing
 - Local authenticated smoke checks: selected-date Admin API returned 3 bookings and 1 escalation, malformed date returned HTTP 400 with a Thai error, and server-rendered Admin HTML contained the date control and escalation alert
+- Deployed commit `5b874ce` to production and applied the updated protected seed successfully (5 services, 3 therapists, 7 shop-info entries, 5 seeded bookings). Production checks: Admin API returned 8 bookings for 26 Aug and 2 for 27 Aug while preserving 1 escalation, malformed date returned HTTP 400, unauthenticated Admin API returned HTTP 401, and Admin HTML contained the date picker and escalation section
+- Confirmed production `shop_info` now contains the explicit fictional address, Demo hours and non-working Demo phone warning
 
 ## Remaining Acceptance Checks
 
